@@ -750,6 +750,59 @@ namespace
         return counts;
     }
 
+    // "index": the missing easy-mode command for adding a manifest to the local catalog --
+    // everything else (install/upgrade/search/show) already worked once a manifest was
+    // indexed, but doing that required compiling a throwaway C++ program. This wraps the
+    // exact same real SQLiteIndex::AddManifest call in a single CLI command. Copies the
+    // manifest into the real manifest root (RelativePath must be relative, not absolute --
+    // see ARCHITECTURE.md) so ResolveManifestById can find it again later.
+    int CmdIndex(SQLiteIndex& index, const std::string& manifestPath)
+    {
+        std::filesystem::path src(manifestPath);
+        if (!std::filesystem::exists(src))
+        {
+            std::cout << "Manifest file not found: " << manifestPath << std::endl;
+            return EXIT_NOT_FOUND;
+        }
+
+        Manifest manifest;
+        try
+        {
+            manifest = YamlParser::CreateFromPath(src);
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Manifest is invalid: " << e.what() << std::endl;
+            return 1;
+        }
+
+        std::filesystem::path destDir(s_manifestRoot);
+        std::filesystem::create_directories(destDir);
+        std::string fileName = src.filename().string();
+        std::filesystem::path dest = destDir / fileName;
+        std::error_code ec;
+        std::filesystem::copy_file(src, dest, std::filesystem::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            std::cout << "Failed to stage manifest into " << dest << ": " << ec.message() << std::endl;
+            return 1;
+        }
+
+        try
+        {
+            index.AddManifest(dest, fileName);
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Failed to index manifest (duplicate {Id,Version,Channel}, or corrupt index): " << e.what() << std::endl;
+            return 1;
+        }
+
+        std::cout << "Indexed " << manifest.Id << " [" << manifest.Version << "]." << std::endl;
+        std::cout << "Now available via: winget install " << manifest.Id << std::endl;
+        return EXIT_OK;
+    }
+
     int CmdSourceList()
     {
         auto counts = CountInstalledBySource();
@@ -1045,6 +1098,7 @@ namespace
     void PrintUsage()
     {
         std::cerr << "usage: winget_cli <install|uninstall|show> <PackageIdentifier>" << std::endl;
+        std::cerr << "       winget_cli index <manifest.yaml>" << std::endl;
         std::cerr << "       winget_cli upgrade <PackageIdentifier>|--all" << std::endl;
         std::cerr << "       winget_cli search [<query>]" << std::endl;
         std::cerr << "       winget_cli list" << std::endl;
@@ -1139,6 +1193,11 @@ int main(int argc, char** argv)
                 return CmdUpgradeAll(index);
             }
             return CmdUpgrade(index, argv[2]);
+        }
+        else if (command == "index")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdIndex(index, argv[2]);
         }
         else
         {

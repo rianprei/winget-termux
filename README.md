@@ -56,6 +56,7 @@ After `build.sh`, `winget` is on `$PATH` (a symlink to `./winget_real_cli`
 
 ```
 winget --version
+winget index <manifest.yaml>
 winget source list
 winget source add <name> <url-to-sqlite-catalog>
 winget source update <name>
@@ -85,10 +86,16 @@ installs the actual binary into `$PREFIX/bin/winget_real_cli` plus a
 works on a Termux install that never cloned this repo. Remove with
 `dpkg -r winget-termux` (or `pkg uninstall winget-termux`).
 
-Manifests must be indexed into the SQLite catalog first (see
-`docs/ARCHITECTURE.md` — RelativePath must be a real relative path, not
-absolute) — there is no `source add`/sync against the real winget.run
-catalog in this port.
+Write a manifest YAML (see `manifests/` for real examples), then:
+
+```
+winget index my_package.yaml
+winget install <PackageIdentifier from the manifest>
+```
+
+`winget index` stages the file into the real manifest root and adds it to
+the local SQLite catalog with one command — no compiling required. There is
+no `source add`/sync against the real winget.run catalog in this port.
 
 ## License
 
