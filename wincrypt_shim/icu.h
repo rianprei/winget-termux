@@ -1,0 +1,10 @@
+#pragma once
+#include <unicode/utypes.h>
+#include <unicode/ustring.h>
+#include <unicode/ucol.h>
+#include <unicode/ubrk.h>
+#include <unicode/uchar.h>
+#include <unicode/ucasemap.h>
+#include <unicode/unorm2.h>
+#include <unicode/ucnv.h>
+#include <unicode/uregex.h>

@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: Test.PortablePayload
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: Test
+PackageName: Portable Test Payload
+Moniker: testportable
+ShortDescription: Real small file used to validate the download+verify+place pipeline (not a real executable)
+Tags:
+  - test
+  - portable
+InstallerLocale: en-US
+InstallerType: portable
+Installers:
+  - Architecture: neutral
+    InstallerUrl: https://raw.githubusercontent.com/microsoft/winget-cli/master/LICENSE
+    InstallerSha256: 27ebda9d51f0a56b7e281ccd8230a27236dcb51c05f64b07869ecf6e965d68b0
+ManifestType: singleton
+ManifestVersion: 1.0.0

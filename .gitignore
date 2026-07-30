@@ -1,0 +1,11 @@
+build/
+winget_real_cli
+winget-termux_*.deb
+build.log
+.test-tmp/
+.srctest/
+.pstest/
+.uatest/
+.remoteinstall/
+.repro1/
+.manual-test/

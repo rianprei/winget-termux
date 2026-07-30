@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: Test.RealTool
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: TestPublisher
+PackageName: Real Tool
+Moniker: realtool
+ShortDescription: Real executable portable payload test
+Tags:
+  - test
+InstallerLocale: en-US
+InstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: http://127.0.0.1:8942/realtool.sh
+    InstallerSha256: 101d1ef225861f101c7583f7a33ce76aaa6e388966964a918ec60852ce428db8
+ManifestType: singleton
+ManifestVersion: 1.0.0

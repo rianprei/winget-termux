@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: Test.ZipTool
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: TestPublisher
+PackageName: Zip Tool
+Moniker: ziptool
+ShortDescription: Real zip-archived portable payload test
+Tags:
+  - test
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: http://127.0.0.1:8942/pkg.zip
+    InstallerSha256: 52956d1d78b9ce4840c339e9819f0bc48d0b6ec0853344c16774f6f5d6ff66b5
+    NestedInstallerFiles:
+      - RelativeFilePath: ziptool.sh
+        PortableCommandAlias: ziptool
+ManifestType: singleton
+ManifestVersion: 1.4.0
