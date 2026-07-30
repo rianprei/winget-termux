@@ -14,6 +14,7 @@
 #include "winget/ManifestYamlParser.h"
 #include "PortableInstallerTermux.h"
 #include "ZipInstallerTermux.h"
+#include <AppInstallerSHA256.h>
 #include <curl/curl.h>
 
 using namespace AppInstaller::Repository;
@@ -803,6 +804,50 @@ namespace
         return EXIT_OK;
     }
 
+    // "install-url": the no-manifest-needed fast path for a single script/binary. Downloads
+    // for real, computes the real SHA256 of what it actually got (self-verifying -- there's
+    // no separate pinned hash to mismatch, unlike catalog installs), then reuses the exact
+    // same PortableInstallerTermux backend and persisted-state writing as every other
+    // install. No manifest file, no indexing step -- closest thing to "winget install
+    // <name>" simplicity when there's no catalog entry to search for.
+    int CmdInstallUrl(const std::string& url, std::string alias)
+    {
+        if (alias.empty())
+        {
+            std::filesystem::path p(url);
+            alias = p.stem().string();
+            if (alias.empty()) { alias = "tool"; }
+        }
+
+        std::filesystem::path tmp = SourcesDir() / (alias + ".dl.tmp");
+        std::cout << "Downloading " << url << "..." << std::endl;
+        if (!DownloadReal(url, tmp))
+        {
+            std::filesystem::remove(tmp);
+            std::cout << "Download failed (network error or bad URL)." << std::endl;
+            return 1;
+        }
+
+        auto hash = AppInstaller::Utility::SHA256::ComputeHashFromFile(tmp);
+        std::string sha256Hex = AppInstaller::Utility::SHA256::ConvertToString(hash);
+        std::for_each(sha256Hex.begin(), sha256Hex.end(), [](char& c) { c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+        std::filesystem::remove(tmp);
+
+        std::string packageId = "url:" + alias;
+        auto result = AppInstaller::Portable::Termux::InstallPortable(packageId, "payload", alias, url, sha256Hex);
+        if (!result.Success)
+        {
+            std::cout << "Install failed: " << result.Message << std::endl;
+            return 1;
+        }
+
+        WriteVersionMarker(packageId, sha256Hex.substr(0, 12), "", alias, alias);
+        std::cout << "Successfully installed as '" << alias << "'." << std::endl;
+        std::cout << "  Command: " << alias << " (" << result.SymlinkPath << ")" << std::endl;
+        std::cout << "  (no manifest -- uninstall with: winget uninstall " << packageId << ")" << std::endl;
+        return EXIT_OK;
+    }
+
     int CmdSourceList()
     {
         auto counts = CountInstalledBySource();
@@ -1099,6 +1144,7 @@ namespace
     {
         std::cerr << "usage: winget_cli <install|uninstall|show> <PackageIdentifier>" << std::endl;
         std::cerr << "       winget_cli index <manifest.yaml>" << std::endl;
+        std::cerr << "       winget_cli install-url <url> [alias]" << std::endl;
         std::cerr << "       winget_cli upgrade <PackageIdentifier>|--all" << std::endl;
         std::cerr << "       winget_cli search [<query>]" << std::endl;
         std::cerr << "       winget_cli list" << std::endl;
@@ -1198,6 +1244,11 @@ int main(int argc, char** argv)
         {
             if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
             return CmdIndex(index, argv[2]);
+        }
+        else if (command == "install-url")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdInstallUrl(argv[2], argc >= 4 ? argv[3] : "");
         }
         else
         {
