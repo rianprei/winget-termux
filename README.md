@@ -58,6 +58,10 @@ After `build.sh`, `winget` is on `$PATH` (a symlink to `./winget_real_cli`
 winget --version
 winget index <manifest.yaml>
 winget install-url <url> [alias]   # no manifest at all, self-verifying
+winget pin <PackageIdentifier>     # skip on upgrade/upgrade --all
+winget unpin <PackageIdentifier>
+winget export [file]               # dump installed packages as JSON (default: stdout)
+winget import <file>               # reinstall everything from an export
 winget source list
 winget source add <name> <url-to-sqlite-catalog>
 winget source update <name>

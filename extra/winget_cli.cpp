@@ -16,6 +16,7 @@
 #include "ZipInstallerTermux.h"
 #include <AppInstallerSHA256.h>
 #include <curl/curl.h>
+#include <json/json.h>
 
 using namespace AppInstaller::Repository;
 using namespace AppInstaller::Repository::Microsoft;
@@ -189,6 +190,23 @@ namespace
     void RemoveVersionMarker(const std::string& packageId)
     {
         std::filesystem::remove(VersionMarkerPath(packageId));
+    }
+
+    // Pin: a real empty marker file. upgrade/upgrade --all check for it and skip the package
+    // instead of touching it -- same real-state pattern as the version marker, no separate
+    // pin database to keep in sync.
+    std::filesystem::path PinPath(const std::string& packageId)
+    {
+        const char* home = std::getenv("HOME");
+        std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
+        std::filesystem::path dir = homeDir / ".winget" / "pins";
+        std::filesystem::create_directories(dir);
+        return dir / (packageId + ".pin");
+    }
+
+    bool IsPinned(const std::string& packageId)
+    {
+        return std::filesystem::exists(PinPath(packageId));
     }
 
     // Real remote source support: a registered source is a name+URL pointing at a real
@@ -515,6 +533,12 @@ namespace
     // index track installed version.
     int CmdUpgrade(SQLiteIndex& index, const std::string& id)
     {
+        if (IsPinned(id))
+        {
+            std::cout << id << " is pinned; skipping upgrade. Use 'winget unpin " << id << "' first." << std::endl;
+            return EXIT_OK;
+        }
+
         // Prefer the persisted source (recorded at install time) over a full re-scan of every
         // registered source -- real speed/predictability win when there are many sources, and
         // it's also the more correct behavior: an upgrade should come from the same place the
@@ -848,6 +872,30 @@ namespace
         return EXIT_OK;
     }
 
+    int CmdPin(const std::string& id)
+    {
+        if (!ReadInstalledState(id))
+        {
+            std::cout << "No installed package found for " << id << "; nothing to pin." << std::endl;
+            return EXIT_NOT_INSTALLED;
+        }
+        std::ofstream(PinPath(id)).close();
+        std::cout << "Pinned " << id << ". It will be skipped by upgrade/upgrade --all." << std::endl;
+        return EXIT_OK;
+    }
+
+    int CmdUnpin(const std::string& id)
+    {
+        if (!IsPinned(id))
+        {
+            std::cout << id << " is not pinned." << std::endl;
+            return EXIT_OK;
+        }
+        std::filesystem::remove(PinPath(id));
+        std::cout << "Unpinned " << id << "." << std::endl;
+        return EXIT_OK;
+    }
+
     int CmdSourceList()
     {
         auto counts = CountInstalledBySource();
@@ -1136,6 +1184,93 @@ namespace
         std::cout << std::endl << "Upgrade summary: " << ok << " OK, " << failed << " failed out of " << installed.size() << " installed package(s)." << std::endl;
         return failed == 0 ? EXIT_OK : 1;
     }
+
+    // Export/import: this fork's own JSON format (not upstream winget's export schema --
+    // that assumes real winget.run sources this port doesn't have). Real round-trip: export
+    // reads the same persisted InstalledState every other command uses; import calls the
+    // real CmdInstall per entry, so it goes through the exact same resolution/backend
+    // dispatch as a manual "winget install" -- no separate reinstall logic.
+    int CmdExport(const std::string& path)
+    {
+        auto installed = ScanInstalled();
+        Json::Value root(Json::arrayValue);
+        for (const auto& entry : installed)
+        {
+            auto state = ReadInstalledState(entry.PackageId);
+            if (!state) { continue; }
+            Json::Value item;
+            item["PackageIdentifier"] = entry.PackageId;
+            item["Version"] = state->Version;
+            item["Source"] = state->SourceName;
+            item["Pinned"] = IsPinned(entry.PackageId);
+            root.append(item);
+        }
+
+        Json::StreamWriterBuilder builder;
+        builder["indentation"] = "  ";
+        std::string json = Json::writeString(builder, root);
+
+        if (path.empty() || path == "-")
+        {
+            std::cout << json << std::endl;
+        }
+        else
+        {
+            std::ofstream out(path);
+            if (!out)
+            {
+                std::cout << "Could not write to " << path << std::endl;
+                return 1;
+            }
+            out << json;
+            std::cout << "Exported " << root.size() << " package(s) to " << path << std::endl;
+        }
+        return EXIT_OK;
+    }
+
+    int CmdImport(SQLiteIndex& index, const std::string& path)
+    {
+        std::ifstream in(path);
+        if (!in)
+        {
+            std::cout << "Could not read " << path << std::endl;
+            return EXIT_NOT_FOUND;
+        }
+
+        Json::Value root;
+        Json::CharReaderBuilder builder;
+        std::string errs;
+        if (!Json::parseFromStream(builder, in, &root, &errs) || !root.isArray())
+        {
+            std::cout << "Invalid import file (not a JSON array): " << errs << std::endl;
+            return 1;
+        }
+
+        int ok = 0, failed = 0;
+        for (const auto& item : root)
+        {
+            std::string id = item.get("PackageIdentifier", "").asString();
+            if (id.empty()) { continue; }
+
+            std::cout << "--- " << id << " ---" << std::endl;
+            int rc = CmdInstall(index, id);
+            if (rc == EXIT_OK)
+            {
+                ok++;
+                if (item.get("Pinned", false).asBool())
+                {
+                    CmdPin(id);
+                }
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        std::cout << std::endl << "Import summary: " << ok << " OK, " << failed << " failed." << std::endl;
+        return failed == 0 ? EXIT_OK : 1;
+    }
 }
 
 namespace
@@ -1145,6 +1280,9 @@ namespace
         std::cerr << "usage: winget_cli <install|uninstall|show> <PackageIdentifier>" << std::endl;
         std::cerr << "       winget_cli index <manifest.yaml>" << std::endl;
         std::cerr << "       winget_cli install-url <url> [alias]" << std::endl;
+        std::cerr << "       winget_cli pin|unpin <PackageIdentifier>" << std::endl;
+        std::cerr << "       winget_cli export [file]  (default: stdout)" << std::endl;
+        std::cerr << "       winget_cli import <file>" << std::endl;
         std::cerr << "       winget_cli upgrade <PackageIdentifier>|--all" << std::endl;
         std::cerr << "       winget_cli search [<query>]" << std::endl;
         std::cerr << "       winget_cli list" << std::endl;
@@ -1249,6 +1387,25 @@ int main(int argc, char** argv)
         {
             if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
             return CmdInstallUrl(argv[2], argc >= 4 ? argv[3] : "");
+        }
+        else if (command == "pin")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdPin(argv[2]);
+        }
+        else if (command == "unpin")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdUnpin(argv[2]);
+        }
+        else if (command == "export")
+        {
+            return CmdExport(argc >= 3 ? argv[2] : "");
+        }
+        else if (command == "import")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdImport(index, argv[2]);
         }
         else
         {
