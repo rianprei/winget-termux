@@ -1,8 +1,24 @@
 # winget-termux
 
 Native ARM64/bionic Termux port of a real subset of Microsoft's `winget-cli`.
-No proot, chroot, root, Wine, Box64, or emulation. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical writeup.
+No proot, chroot, root, Wine, Box64, or emulation.
+
+## Quick start
+
+```
+git clone https://github.com/rianprei/winget-termux.git
+cd winget-termux
+./build.sh
+winget --version
+```
+
+## Docs
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technical writeup, what's
+  real vs. cut, POSIX/Win32 conversion table.
+- [docs/STATS.md](docs/STATS.md) — diff stats vs. upstream winget-cli.
+- [docs/AUDIT.md](docs/AUDIT.md) — dead code, real bugs found and fixed,
+  known limitations.
 
 ## Build
 
@@ -73,3 +89,8 @@ Manifests must be indexed into the SQLite catalog first (see
 `docs/ARCHITECTURE.md` — RelativePath must be a real relative path, not
 absolute) — there is no `source add`/sync against the real winget.run
 catalog in this port.
+
+## License
+
+MIT, same as upstream `winget-cli` (Copyright (c) Microsoft Corporation).
+See [LICENSE](LICENSE).
