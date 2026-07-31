@@ -25,6 +25,17 @@ namespace AppInstaller::Portable::Termux
         const std::string& downloadUrl,
         const std::string& expectedSha256Lowercase);
 
+    // Same as InstallPortable, but the payload is already sitting at sourceFile (already
+    // downloaded and hashed by the caller) instead of being downloaded here -- avoids a
+    // second network round-trip whose content isn't guaranteed to match the first.
+    // sourceFile is moved (not copied) into place; it must not be reused after this call.
+    InstallResult InstallPortableFromLocalFile(
+        const std::string& packageId,
+        const std::string& fileName,
+        const std::string& commandAlias,
+        const std::filesystem::path& sourceFile,
+        const std::string& expectedSha256Lowercase);
+
     // Uninstalls a portable package: removes the symlink, the payload file, and the (now empty)
     // package directory. Safe to call even if some parts are already missing (idempotent).
     bool UninstallPortable(const std::string& packageId, const std::string& fileName, const std::string& commandAlias);

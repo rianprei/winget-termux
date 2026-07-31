@@ -408,6 +408,28 @@ run badcommand > /dev/null 2>&1; [ $? -eq 64 ] && pass "unknown command exits 64
 echo "=== list (nothing installed) ==="
 run list | grep -q "No installed packages" && pass "list empty state" || fail "list empty state"
 
+echo "=== security: id/alias/source-name sanitization ==="
+run install-url "http://127.0.0.1:$PORT/tool.sh" "../escape" > /dev/null 2>&1
+[ $? -ne 0 ] && [ ! -e "$HOME/../escape" ] && pass "install-url rejects traversal alias" || fail "install-url traversal alias"
+run install-url "http://127.0.0.1:$PORT/tool.sh" "a'b" > /dev/null 2>&1
+[ $? -ne 0 ] && pass "install-url rejects quote in alias" || fail "install-url quote alias"
+run source add "../evilsource" "http://127.0.0.1:$PORT/nope.db" > /dev/null 2>&1
+[ $? -ne 0 ] && [ ! -e "$HOME/.winget/sources/../evilsource.db" ] && pass "source add rejects traversal name" || fail "source add traversal name"
+run source add "a/b" "http://127.0.0.1:$PORT/nope.db" > /dev/null 2>&1
+[ $? -ne 0 ] && pass "source add rejects slash in name" || fail "source add slash name"
+
+echo "=== security: install-url single-download, real payload installed ==="
+run install-url "http://127.0.0.1:$PORT/tool.sh" sectest > /dev/null 2>&1
+command -v sectest > /dev/null && pass "install-url alias on PATH" || fail "install-url alias on PATH"
+[ "$(sectest 2>&1)" = "tool: real execution ok" ] && pass "install-url installs real payload" || fail "install-url payload content"
+run uninstall url:sectest > /dev/null 2>&1
+
+echo "=== security: concurrent install/uninstall on same id doesn't corrupt state ==="
+for i in 1 2 3 4 5; do run install Test.Portable > /dev/null 2>&1 & done
+wait
+command -v ptest > /dev/null && pass "concurrent installs converge to installed state" || fail "concurrent install corrupted state"
+run uninstall Test.Portable > /dev/null 2>&1
+
 # cleanup
 pkill -f "http.server $PORT" > /dev/null 2>&1
 [ -f "$REAL_DB_BACKUP" ] && cp "$REAL_DB_BACKUP" "$REAL_DB" || rm -f "$REAL_DB"

@@ -17,6 +17,9 @@
 #include <AppInstallerSHA256.h>
 #include <curl/curl.h>
 #include <json/json.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 using namespace AppInstaller::Repository;
 using namespace AppInstaller::Repository::Microsoft;
@@ -31,6 +34,53 @@ namespace
     // absolute filesystem path). Manifests are resolved relative to a fixed root next to
     // the index db -- no machine-specific dev path is baked into the binary.
     const std::string s_manifestRoot = (std::filesystem::path(s_dbPath).parent_path() / ".winget" / "manifests").string();
+
+    // Real guard against path traversal / shell injection: packageId, alias, and source
+    // name all become path components (~/.winget/programfiles/<id>, $PREFIX/bin/<alias>,
+    // ~/.winget/sources/<name>.db) or get shelled out to tar/unzip with single-quote
+    // wrapping. A manifest/source under attacker control (remote source, crafted id)
+    // must not be able to inject '/', '..', quotes, or control chars into those paths.
+    bool IsSafePathComponent(const std::string& s)
+    {
+        if (s.empty() || s.size() > 200) { return false; }
+        if (s == "." || s == "..") { return false; }
+        for (unsigned char c : s)
+        {
+            if (c < 0x20 || c == 0x7f) { return false; }
+            if (c == '/' || c == '\\' || c == '\'' || c == '"' || c == '\0') { return false; }
+        }
+        return true;
+    }
+
+    // Real per-package exclusive lock: concurrent `install`/`uninstall`/`upgrade` on the same
+    // id would otherwise race on the same directory/symlink/version-marker with no protection.
+    // flock on an fd is released automatically on process exit even if we crash mid-install,
+    // so a killed process never leaves a stale lock behind.
+    class PackageLock
+    {
+    public:
+        explicit PackageLock(const std::string& packageId)
+        {
+            const char* home = std::getenv("HOME");
+            std::filesystem::path dir = (home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home")) / ".winget" / "locks";
+            std::filesystem::create_directories(dir);
+            std::filesystem::path lockPath = dir / (packageId + ".lock");
+            m_fd = open(lockPath.c_str(), O_CREAT | O_RDWR, 0600);
+            if (m_fd >= 0)
+            {
+                flock(m_fd, LOCK_EX);
+            }
+        }
+        ~PackageLock()
+        {
+            if (m_fd >= 0) { close(m_fd); }
+        }
+        PackageLock(const PackageLock&) = delete;
+        PackageLock& operator=(const PackageLock&) = delete;
+
+    private:
+        int m_fd = -1;
+    };
 
     std::string ToHexLower(const std::vector<BYTE>& bytes)
     {
@@ -396,12 +446,20 @@ namespace
 
     int CmdInstall(SQLiteIndex& index, const std::string& id)
     {
+        PackageLock lock(id);
         std::string sourceName;
         auto manifest = ResolveManifestAnywhere(index, id, sourceName);
         if (!manifest)
         {
             std::cout << "No package found matching input criteria: " << id << std::endl;
             return EXIT_NOT_FOUND;
+        }
+
+        if (!IsSafePathComponent(manifest->Id))
+        {
+            std::cout << "Refusing to install: PackageIdentifier '" << manifest->Id
+                << "' is not a safe path component." << std::endl;
+            return 1;
         }
 
         std::cout << "Found " << manifest->Id << " [" << manifest->Version << "]"
@@ -417,9 +475,21 @@ namespace
             const auto& nested = zip->NestedInstallerFiles[0];
             std::string alias = !nested.PortableCommandAlias.empty() ? nested.PortableCommandAlias
                 : (manifest->Moniker.empty() ? manifest->Id : manifest->Moniker);
+            if (!IsSafePathComponent(alias))
+            {
+                std::cout << "Refusing to install: command alias '" << alias << "' is not a safe path component." << std::endl;
+                return 1;
+            }
+            std::string relFile = nested.RelativeFilePath;
+            if (relFile.empty() || relFile[0] == '/' || relFile.find("..") != std::string::npos)
+            {
+                std::cout << "Refusing to install: NestedInstallerFiles RelativeFilePath '" << relFile
+                    << "' is absolute or escapes the archive." << std::endl;
+                return 1;
+            }
 
             std::cout << "This is a Zip package; extracting via native Termux backend (real unzip)..." << std::endl;
-            auto result = AppInstaller::Zip::Termux::InstallZip(manifest->Id, zip->Url, sha256Hex, nested.RelativeFilePath, alias);
+            auto result = AppInstaller::Zip::Termux::InstallZip(manifest->Id, zip->Url, sha256Hex, relFile, alias);
             if (!result.Success)
             {
                 std::cout << "Installation failed: " << result.Message << std::endl;
@@ -438,6 +508,11 @@ namespace
         {
             std::string sha256Hex = ToHexLower(portable->Sha256);
             std::string alias = manifest->Moniker.empty() ? manifest->Id : manifest->Moniker;
+            if (!IsSafePathComponent(alias))
+            {
+                std::cout << "Refusing to install: command alias '" << alias << "' is not a safe path component." << std::endl;
+                return 1;
+            }
 
             const char* kindLabel = portable->EffectiveInstallerType() == InstallerTypeEnum::Script ? "Script" : "Portable";
             std::cout << "This is a " << kindLabel << " package; installing via native Termux backend..." << std::endl;
@@ -473,6 +548,7 @@ namespace
     // installed and perfectly removable.
     int CmdUninstall(SQLiteIndex& index, const std::string& id)
     {
+        PackageLock lock(id);
         const char* home = std::getenv("HOME");
         std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
         bool zipDirExists = std::filesystem::exists(homeDir / ".winget" / "ziparchives" / id);
@@ -533,6 +609,7 @@ namespace
     // index track installed version.
     int CmdUpgrade(SQLiteIndex& index, const std::string& id)
     {
+        PackageLock lock(id);
         if (IsPinned(id))
         {
             std::cout << id << " is pinned; skipping upgrade. Use 'winget unpin " << id << "' first." << std::endl;
@@ -663,6 +740,11 @@ namespace
 
     int CmdSourceAdd(const std::string& name, const std::string& url)
     {
+        if (!IsSafePathComponent(name))
+        {
+            std::cout << "Refusing to add source: name '" << name << "' is not a safe path component." << std::endl;
+            return 1;
+        }
         if (name == "TermuxLocal")
         {
             std::cout << "'TermuxLocal' is the reserved local install catalog name." << std::endl;
@@ -843,6 +925,13 @@ namespace
             if (alias.empty()) { alias = "tool"; }
         }
 
+        if (!IsSafePathComponent(alias))
+        {
+            std::cout << "Refusing to install: alias '" << alias << "' is not a safe path component." << std::endl;
+            return 1;
+        }
+        PackageLock lock("url:" + alias);
+
         std::filesystem::path tmp = SourcesDir() / (alias + ".dl.tmp");
         std::cout << "Downloading " << url << "..." << std::endl;
         if (!DownloadReal(url, tmp))
@@ -855,10 +944,12 @@ namespace
         auto hash = AppInstaller::Utility::SHA256::ComputeHashFromFile(tmp);
         std::string sha256Hex = AppInstaller::Utility::SHA256::ConvertToString(hash);
         std::for_each(sha256Hex.begin(), sha256Hex.end(), [](char& c) { c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
-        std::filesystem::remove(tmp);
 
+        // Reuses the file just downloaded (and hashed) instead of downloading a second time --
+        // a second GET isn't guaranteed to return identical bytes (CDN, unstable URL), which
+        // would silently install content the hash above never actually verified.
         std::string packageId = "url:" + alias;
-        auto result = AppInstaller::Portable::Termux::InstallPortable(packageId, "payload", alias, url, sha256Hex);
+        auto result = AppInstaller::Portable::Termux::InstallPortableFromLocalFile(packageId, "payload", alias, tmp, sha256Hex);
         if (!result.Success)
         {
             std::cout << "Install failed: " << result.Message << std::endl;

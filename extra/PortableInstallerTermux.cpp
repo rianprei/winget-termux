@@ -90,32 +90,19 @@ namespace AppInstaller::Portable::Termux
         }
     }
 
-    InstallResult InstallPortable(
+    // Shared tail of the install pipeline once the payload is already sitting at
+    // payloadPath (either just downloaded, or moved in from a caller who already
+    // downloaded and hashed it once -- e.g. install-url, which used to download twice:
+    // once to compute the hash, once more here. Real TOCTOU/network-dependency reduction.
+    InstallResult FinishInstallFromLocalFile(
         const std::string& packageId,
-        const std::string& fileName,
+        const std::filesystem::path& dir,
+        const std::filesystem::path& payloadPath,
         const std::string& commandAlias,
-        const std::string& downloadUrl,
         const std::string& expectedSha256Lowercase)
     {
         InstallResult result;
-
-        std::filesystem::path dir = PackageDir(packageId);
         std::error_code ec;
-        std::filesystem::create_directories(dir, ec);
-        if (ec)
-        {
-            result.Message = "failed to create install directory: " + ec.message();
-            return result;
-        }
-
-        std::filesystem::path payloadPath = dir / fileName;
-
-        // 1. Download real
-        if (!DownloadReal(downloadUrl, payloadPath))
-        {
-            result.Message = "download failed";
-            return result;
-        }
 
         // 2. Verify SHA256 real
         auto hash = AppInstaller::Utility::SHA256::ComputeHashFromFile(payloadPath);
@@ -160,6 +147,69 @@ namespace AppInstaller::Portable::Termux
         result.SymlinkPath = link;
         result.Message = "installed OK";
         return result;
+    }
+
+    InstallResult InstallPortable(
+        const std::string& packageId,
+        const std::string& fileName,
+        const std::string& commandAlias,
+        const std::string& downloadUrl,
+        const std::string& expectedSha256Lowercase)
+    {
+        InstallResult result;
+
+        std::filesystem::path dir = PackageDir(packageId);
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        if (ec)
+        {
+            result.Message = "failed to create install directory: " + ec.message();
+            return result;
+        }
+
+        std::filesystem::path payloadPath = dir / fileName;
+        if (!DownloadReal(downloadUrl, payloadPath))
+        {
+            result.Message = "download failed";
+            return result;
+        }
+
+        return FinishInstallFromLocalFile(packageId, dir, payloadPath, commandAlias, expectedSha256Lowercase);
+    }
+
+    InstallResult InstallPortableFromLocalFile(
+        const std::string& packageId,
+        const std::string& fileName,
+        const std::string& commandAlias,
+        const std::filesystem::path& sourceFile,
+        const std::string& expectedSha256Lowercase)
+    {
+        InstallResult result;
+
+        std::filesystem::path dir = PackageDir(packageId);
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        if (ec)
+        {
+            result.Message = "failed to create install directory: " + ec.message();
+            return result;
+        }
+
+        std::filesystem::path payloadPath = dir / fileName;
+        std::filesystem::rename(sourceFile, payloadPath, ec);
+        if (ec)
+        {
+            // cross-device rename (e.g. tmp on a different mount) -- fall back to copy.
+            std::filesystem::copy_file(sourceFile, payloadPath, std::filesystem::copy_options::overwrite_existing, ec);
+            std::filesystem::remove(sourceFile);
+            if (ec)
+            {
+                result.Message = "failed to move downloaded file into place: " + ec.message();
+                return result;
+            }
+        }
+
+        return FinishInstallFromLocalFile(packageId, dir, payloadPath, commandAlias, expectedSha256Lowercase);
     }
 
     bool UninstallPortable(const std::string& packageId, const std::string& fileName, const std::string& commandAlias)

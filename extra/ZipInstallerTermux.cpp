@@ -156,11 +156,22 @@ namespace AppInstaller::Zip::Termux
             return result;
         }
 
-        // 4. Locate nested binary per manifest's NestedInstallerFiles[].RelativeFilePath
+        // 4. Locate nested binary per manifest's NestedInstallerFiles[].RelativeFilePath.
+        // Real zip-slip guard: even though the CLI dispatcher already rejects absolute/".."
+        // RelativeFilePath before calling here, a symlink planted by a malicious archive
+        // entry could still resolve outside extractDir -- weakly_canonical + prefix check
+        // catches that too, not just the raw string.
         std::filesystem::path binaryPath = extractDir / nestedRelativeFilePath;
         if (!std::filesystem::exists(binaryPath))
         {
             result.Message = "nested installer file not found after extraction: " + nestedRelativeFilePath;
+            return result;
+        }
+        auto canonExtractDir = std::filesystem::weakly_canonical(extractDir, ec);
+        auto canonBinaryPath = std::filesystem::weakly_canonical(binaryPath, ec);
+        if (ec || canonBinaryPath.string().rfind(canonExtractDir.string(), 0) != 0)
+        {
+            result.Message = "nested installer file escapes extraction directory: " + nestedRelativeFilePath;
             return result;
         }
 
