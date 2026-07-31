@@ -1,5 +1,9 @@
 # winget-termux
 
+[![CI](https://github.com/rianprei/winget-termux/actions/workflows/ci.yml/badge.svg)](https://github.com/rianprei/winget-termux/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Catalog](https://img.shields.io/badge/catalog-19_packages-blue.svg)](catalog/README.md)
+
 A native ARM64 port of a working subset of Microsoft's `winget-cli`, built
 to run directly on Termux — no proot, no chroot, no root, no Wine, no
 emulation layer. The binary is a real clang build targeting bionic libc,
@@ -132,6 +136,8 @@ a Termux install that never cloned this repository. Remove with
 - [docs/AUDIT.md](docs/AUDIT.md) — known limitations and bugs found during
   development.
 - [catalog/](catalog/) — nineteen verified ARM64 command-line tools.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, and contribution rules.
+- [SECURITY.md](SECURITY.md) — vulnerability reporting.
 
 ## License
 
