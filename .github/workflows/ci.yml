@@ -9,13 +9,10 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    container:
-      image: termux/termux-docker:latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build
-        run: ./build.sh
-
-      - name: Run tests
-        run: ./run-tests.sh
+      - name: Build and test inside termux-docker
+        run: |
+          docker run --rm -v "$PWD:/root/repo" -w /root/repo termux/termux-docker:latest \
+            bash -lc "./build.sh && ./run-tests.sh"
