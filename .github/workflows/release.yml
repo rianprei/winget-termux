@@ -13,9 +13,9 @@ jobs:
       - name: Build .deb inside termux-docker
         run: |
           docker create --name wgbuild -v "$PWD:/root/repo:ro" termux/termux-docker:latest \
-            bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh && cp winget-termux_*.deb /"
+            bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh"
           docker start -a wgbuild
-          docker cp wgbuild:/winget-termux_1.0.0_aarch64.deb .
+          docker cp wgbuild:/data/data/com.termux/files/home/repo/winget-termux_1.0.0_aarch64.deb .
           docker rm wgbuild
 
       - name: Checksums
