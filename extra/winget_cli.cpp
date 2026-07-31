@@ -1287,6 +1287,89 @@ namespace
         std::cout << hex << std::endl;
         return EXIT_OK;
     }
+
+    // Real schema validation via the same YamlParser upstream winget-cli uses (fails on
+    // malformed YAML, missing required fields, wrong types) -- no separate schema tool.
+    int CmdValidate(const std::string& manifestPath)
+    {
+        std::filesystem::path src(manifestPath);
+        if (!std::filesystem::exists(src))
+        {
+            std::cout << "Manifest file not found: " << manifestPath << std::endl;
+            return EXIT_NOT_FOUND;
+        }
+        try
+        {
+            auto manifest = YamlParser::CreateFromPath(src);
+            std::cout << "Manifest is valid: " << manifest.Id << " [" << manifest.Version << "]" << std::endl;
+            return EXIT_OK;
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "Manifest is invalid: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Downloads the installer payload for a catalog entry without installing it -- real
+    // network fetch + real SHA256 check against the manifest, same as install does, just
+    // without the symlink/chmod step.
+    int CmdDownload(SQLiteIndex& index, const std::string& id, std::string destDir)
+    {
+        std::string sourceName;
+        auto manifest = ResolveManifestAnywhere(index, id, sourceName);
+        if (!manifest)
+        {
+            std::cout << "No package found matching input criteria: " << id << std::endl;
+            return EXIT_NOT_FOUND;
+        }
+
+        const AppInstaller::Manifest::ManifestInstaller* installer = FindZip(*manifest);
+        if (!installer)
+        {
+            installer = FindPortable(*manifest);
+        }
+        if (!installer)
+        {
+            std::cout << "No installer type supported on this platform was found for " << id << "." << std::endl;
+            return EXIT_UNSUPPORTED_TYPE;
+        }
+
+        if (destDir.empty())
+        {
+            destDir = ".";
+        }
+        std::filesystem::create_directories(destDir);
+        std::string url = installer->Url;
+        std::string fileName = std::filesystem::path(url).filename().string();
+        if (fileName.empty())
+        {
+            fileName = manifest->Id + ".bin";
+        }
+        std::filesystem::path dest = std::filesystem::path(destDir) / fileName;
+
+        std::cout << "Downloading " << url << "..." << std::endl;
+        if (!DownloadReal(url, dest))
+        {
+            std::cout << "Download failed." << std::endl;
+            return 1;
+        }
+
+        std::string expectedHex = ToHexLower(installer->Sha256);
+        auto hash = AppInstaller::Utility::SHA256::ComputeHashFromFile(dest);
+        std::string gotHex = AppInstaller::Utility::SHA256::ConvertToString(hash);
+        std::for_each(gotHex.begin(), gotHex.end(), [](char& c) { c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+        if (!expectedHex.empty() && gotHex != expectedHex)
+        {
+            std::cout << "SHA256 mismatch: got " << gotHex << " expected " << expectedHex << std::endl;
+            std::filesystem::remove(dest);
+            return 1;
+        }
+
+        std::cout << "Saved to " << dest.string() << std::endl;
+        std::cout << "SHA256: " << gotHex << std::endl;
+        return EXIT_OK;
+    }
 }
 
 namespace
@@ -1304,6 +1387,8 @@ namespace
         std::cerr << "       winget_cli list" << std::endl;
         std::cerr << "       winget_cli source <list|add <name> <url>|remove <name>|update <name>>" << std::endl;
         std::cerr << "       winget_cli hash <file>" << std::endl;
+        std::cerr << "       winget_cli validate <manifest.yaml>" << std::endl;
+        std::cerr << "       winget_cli download <PackageIdentifier> [dest-dir]" << std::endl;
     }
 }
 
@@ -1327,6 +1412,12 @@ int main(int argc, char** argv)
     {
         if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
         return CmdHash(argv[2]);
+    }
+
+    if (command == "validate")
+    {
+        if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+        return CmdValidate(argv[2]);
     }
 
     try
@@ -1429,6 +1520,11 @@ int main(int argc, char** argv)
         {
             if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
             return CmdImport(index, argv[2]);
+        }
+        else if (command == "download")
+        {
+            if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+            return CmdDownload(index, argv[2], argc >= 4 ? argv[3] : "");
         }
         else
         {

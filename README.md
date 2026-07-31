@@ -27,6 +27,8 @@ winget --version
 - `pin` / `unpin` — exclude a package from upgrades.
 - `export` / `import` — snapshot and restore installed packages.
 - `hash` — compute a manifest-ready SHA256 for a local file.
+- `validate` — schema-check a manifest without indexing it.
+- `download` — fetch a catalog entry's installer without installing it.
 - Portable, Zip, and Script installer types, including automatic `.tar.gz`
   extraction alongside `.zip`.
 
@@ -77,6 +79,8 @@ winget unpin <PackageIdentifier>
 winget export [file]
 winget import <file>
 winget hash <file>
+winget validate <manifest.yaml>
+winget download <PackageIdentifier> [dest-dir]
 
 winget source add <name> <url-to-sqlite-catalog>
 winget source update <name>
