@@ -17,8 +17,44 @@ jobs:
             bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh && cp winget-termux_*.deb /root/out/"
           mv out/winget-termux_*.deb .
 
+      - name: Checksums
+        run: sha256sum winget-termux_*.deb > checksums.txt
+
+      - name: Build release notes
+        run: |
+          cat > notes.md <<EOF
+          Native ARM64/bionic Termux port of \`winget-cli\` — no proot, no chroot, no root, no Wine, no emulation.
+
+          ## Install
+
+          \`\`\`bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(ls winget-termux_*.deb)
+          dpkg -i $(ls winget-termux_*.deb)
+          \`\`\`
+
+          Or from source:
+
+          \`\`\`bash
+          git clone https://github.com/${{ github.repository }}.git
+          cd $(basename ${{ github.repository }})
+          ./build.sh
+          \`\`\`
+
+          ## Checksum (sha256)
+
+          \`\`\`
+          $(cat checksums.txt)
+          \`\`\`
+
+          See [CHANGELOG below](#) for commit history since the last tag.
+          EOF
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: winget-termux_*.deb
+          name: winget-termux ${{ github.ref_name }}
+          body_path: notes.md
+          files: |
+            winget-termux_*.deb
+            checksums.txt
           generate_release_notes: true
