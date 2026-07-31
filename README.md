@@ -36,8 +36,18 @@ winget --version
 - Portable, Zip, and Script installer types, including automatic `.tar.gz`
   extraction alongside `.zip`.
 
-`.exe`, `.msi`, and `.msix` are not supported — there is no path to running
-Windows installers on Android, and this project doesn't pretend otherwise.
+## What it can't do (and won't fake)
+
+- `.exe`, `.msi`, `.msix` installers — no path to running Win32 binaries on
+  Android without Wine/emulation, which this project deliberately avoids.
+- `msstore` source — talks to a Microsoft Store API with no Android equivalent.
+- `winget configure` (DSC) — Windows-only configuration engine, no ARM64/Linux port exists.
+- COM API / PowerShell module (`Microsoft.WinGet.Client`) — no COM surface on Android.
+- Group Policy / MDM enterprise controls — Windows-only management stack.
+
+Everything else in real winget-cli's CLI surface (install, search, source
+management, pin, export/import, hash, validate, upgrade, list, completions)
+is implemented natively above.
 
 ## Build
 
