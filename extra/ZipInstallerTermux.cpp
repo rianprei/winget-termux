@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <cerrno>
 
 namespace AppInstaller::Zip::Termux
 {
@@ -109,7 +110,7 @@ namespace AppInstaller::Zip::Termux
                 _exit(127);
             }
             int status = 0;
-            waitpid(pid, &status, 0);
+            while (waitpid(pid, &status, 0) == -1 && errno == EINTR) {}
             return WIFEXITED(status) && WEXITSTATUS(status) == 0;
         }
     }
