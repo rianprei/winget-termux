@@ -14,5 +14,5 @@ jobs:
 
       - name: Build and test inside termux-docker
         run: |
-          docker run --rm -u root -v "$PWD:/root/repo" -w /root/repo termux/termux-docker:latest \
-            bash -lc "chown -R root:root /root/repo && bash build.sh && bash run-tests.sh"
+          docker run --rm -v "$PWD:/root/repo:ro" termux/termux-docker:latest \
+            bash -lc "cp -r /root/repo /tmp/repo && cd /tmp/repo && bash build.sh && bash run-tests.sh"
