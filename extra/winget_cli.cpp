@@ -1026,6 +1026,44 @@ namespace
         return EXIT_OK;
     }
 
+    // JSON dump of registered sources (own schema, same reasoning as CmdExport --
+    // upstream winget's source export schema assumes msstore/community sources this
+    // port doesn't have). TermuxLocal is deliberately excluded: it's the local install
+    // database, not a remote source, and has no URL to round-trip.
+    int CmdSourceExport(const std::string& path)
+    {
+        Json::Value root(Json::arrayValue);
+        for (const auto& e : LoadSources())
+        {
+            Json::Value item;
+            item["Name"] = e.Name;
+            item["Argument"] = e.Url;
+            item["Type"] = "Microsoft.PreIndexed.Package";
+            root.append(item);
+        }
+
+        Json::StreamWriterBuilder builder;
+        builder["indentation"] = "  ";
+        std::string json = Json::writeString(builder, root);
+
+        if (path.empty() || path == "-")
+        {
+            std::cout << json << std::endl;
+        }
+        else
+        {
+            std::ofstream out(path);
+            if (!out)
+            {
+                std::cout << "Could not write to " << path << std::endl;
+                return 1;
+            }
+            out << json;
+            std::cout << "Exported " << root.size() << " source(s) to " << path << std::endl;
+        }
+        return EXIT_OK;
+    }
+
     void PrintPackageLine(const std::string& id, const std::string& name, const std::string& version, const std::string& moniker)
     {
         std::cout << (name.empty() ? "<unknown>" : name) << "\t" << id << "\t" << version << "\t" << (moniker.empty() ? "<none>" : moniker) << std::endl;
@@ -1185,7 +1223,7 @@ namespace
     // install/upgrade time) instead of re-resolving the manifest -- this is what makes list
     // work for remote-sourced packages even when that source is offline or has been removed,
     // and avoids a network round-trip just to show what's already on disk.
-    int CmdList(SQLiteIndex& index)
+    int CmdList(SQLiteIndex& index, bool upgradeAvailableOnly = false)
     {
         auto installed = ScanInstalled();
         if (installed.empty())
@@ -1240,6 +1278,16 @@ namespace
                 // Directory exists but symlink is gone/broken -- a real partial-uninstall
                 // leftover, not a package to honestly call "installed".
                 continue;
+            }
+
+            if (upgradeAvailableOnly)
+            {
+                std::string discardSource;
+                auto latest = ResolveManifestAnywhere(index, entry.PackageId, discardSource);
+                if (!latest || !state || latest->Version == state->Version || IsPinned(entry.PackageId))
+                {
+                    continue;
+                }
             }
 
             std::string name = state && !state->Name.empty() ? state->Name : "<unknown>";
@@ -1491,11 +1539,13 @@ namespace
         std::cerr << "       winget_cli import <file>" << std::endl;
         std::cerr << "       winget_cli upgrade <PackageIdentifier>|--all" << std::endl;
         std::cerr << "       winget_cli search [<query>]" << std::endl;
-        std::cerr << "       winget_cli list" << std::endl;
-        std::cerr << "       winget_cli source <list|add <name> <url>|remove <name>|update <name>>" << std::endl;
+        std::cerr << "       winget_cli list [--upgrade-available]" << std::endl;
+        std::cerr << "       winget_cli source <list|add <name> <url>|remove <name>|update <name>|export [file]>" << std::endl;
         std::cerr << "       winget_cli hash <file>" << std::endl;
         std::cerr << "       winget_cli validate <manifest.yaml>" << std::endl;
         std::cerr << "       winget_cli download <PackageIdentifier> [dest-dir]" << std::endl;
+        std::cerr << "       winget_cli --info" << std::endl;
+        std::cerr << "       winget_cli complete" << std::endl;
     }
 }
 
@@ -1512,6 +1562,32 @@ int main(int argc, char** argv)
     if (command == "--version" || command == "-v")
     {
         std::cout << "winget-termux 1.0.0 (native ARM64/bionic Termux port)" << std::endl;
+        return EXIT_OK;
+    }
+
+    if (command == "--info")
+    {
+        const char* home = std::getenv("HOME");
+        std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
+        std::cout << "winget-termux 1.0.0 (native ARM64/bionic Termux port)" << std::endl;
+        std::cout << "Local index:      " << s_dbPath << std::endl;
+        std::cout << "Sources dir:      " << (homeDir / ".winget" / "sources").string() << std::endl;
+        std::cout << "Program files:    " << (homeDir / ".winget" / "programfiles").string() << std::endl;
+        std::cout << "Zip archives:     " << (homeDir / ".winget" / "ziparchives").string() << std::endl;
+        std::cout << "Locks dir:        " << (homeDir / ".winget" / "locks").string() << std::endl;
+        return EXIT_OK;
+    }
+
+    if (command == "complete")
+    {
+        static const char* commands[] = {
+            "install", "uninstall", "upgrade", "list", "search", "show", "source",
+            "index", "install-url", "pin", "unpin", "export", "import", "hash",
+            "validate", "download", "--version", "--info", "complete"
+        };
+        std::cout << "complete -W \"";
+        for (const char* c : commands) { std::cout << c << " "; }
+        std::cout << "\" winget winget_cli" << std::endl;
         return EXIT_OK;
     }
 
@@ -1535,6 +1611,10 @@ int main(int argc, char** argv)
             if (sub == "list")
             {
                 return CmdSourceList();
+            }
+            else if (sub == "export")
+            {
+                return CmdSourceExport(argc >= 4 ? argv[3] : "");
             }
             else if (sub == "add")
             {
@@ -1569,7 +1649,8 @@ int main(int argc, char** argv)
 
         if (command == "list")
         {
-            return CmdList(index);
+            bool upgradeAvailableOnly = argc >= 3 && std::string(argv[2]) == "--upgrade-available";
+            return CmdList(index, upgradeAvailableOnly);
         }
         else if (command == "search")
         {

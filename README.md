@@ -69,7 +69,7 @@ winget show <PackageIdentifier>
 winget install <PackageIdentifier>
 winget uninstall <PackageIdentifier>
 winget upgrade <PackageIdentifier>       # or: winget upgrade --all
-winget list
+winget list                              # or: winget list --upgrade-available
 
 winget index <manifest.yaml>
 winget install-url <url> [alias]
@@ -86,6 +86,10 @@ winget source add <name> <url-to-sqlite-catalog>
 winget source update <name>
 winget source remove <name>
 winget source list
+winget source export [file]
+
+winget --info
+winget complete
 ```
 
 To install something, it needs to be in the catalog first. Either write a
