@@ -419,22 +419,57 @@ run source add "a/b" "http://127.0.0.1:$PORT/nope.db" > /dev/null 2>&1
 [ $? -ne 0 ] && pass "source add rejects slash in name" || fail "source add slash name"
 
 echo "=== security: install-url single-download, real payload installed ==="
-run install-url "http://127.0.0.1:$PORT/tool.sh" sectest > /dev/null 2>&1
+cat > "$HTTPROOT/sectest.sh" <<'PAYLOAD_SEC'
+#!/data/data/com.termux/files/usr/bin/bash
+echo "sectest: real execution ok"
+PAYLOAD_SEC
+chmod +x "$HTTPROOT/sectest.sh"
+run install-url "http://127.0.0.1:$PORT/sectest.sh" sectest > /dev/null 2>&1
 command -v sectest > /dev/null && pass "install-url alias on PATH" || fail "install-url alias on PATH"
-[ "$(sectest 2>&1)" = "tool: real execution ok" ] && pass "install-url installs real payload" || fail "install-url payload content"
+[ "$(sectest 2>&1)" = "sectest: real execution ok" ] && pass "install-url installs real payload" || fail "install-url payload content"
 run uninstall url:sectest > /dev/null 2>&1
 
 echo "=== security: concurrent install/uninstall on same id doesn't corrupt state ==="
-for i in 1 2 3 4 5; do run install Test.Portable > /dev/null 2>&1 & done
+cat > "$HTTPROOT/conc.sh" <<'PAYLOAD_CONC'
+#!/data/data/com.termux/files/usr/bin/bash
+echo "conc: ok"
+PAYLOAD_CONC
+chmod +x "$HTTPROOT/conc.sh"
+CONC_SHA=$(openssl dgst -sha256 "$HTTPROOT/conc.sh" | awk '{print $2}')
+cat > "$WORK/test_conc.yaml" <<EOF
+PackageIdentifier: Test.Conc
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: Test
+PackageName: Conc Test
+Moniker: conctest
+ShortDescription: test
+InstallerLocale: en-US
+InstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: http://127.0.0.1:$PORT/conc.sh
+    InstallerSha256: $CONC_SHA
+ManifestType: singleton
+ManifestVersion: 1.0.0
+EOF
+run index "$WORK/test_conc.yaml" > /dev/null 2>&1
+for i in 1 2 3 4 5; do run install Test.Conc > "$WORK/conc_$i.log" 2>&1 & done
 wait
-command -v ptest > /dev/null && pass "concurrent installs converge to installed state" || fail "concurrent install corrupted state"
-run uninstall Test.Portable > /dev/null 2>&1
+if ! command -v conctest > /dev/null; then
+    fail "concurrent install corrupted state"
+    cat "$WORK"/conc_*.log
+else
+    pass "concurrent installs converge to installed state"
+fi
+run uninstall Test.Conc > /dev/null 2>&1
 
 # cleanup
 pkill -f "http.server $PORT" > /dev/null 2>&1
 [ -f "$REAL_DB_BACKUP" ] && cp "$REAL_DB_BACKUP" "$REAL_DB" || rm -f "$REAL_DB"
 rm -rf "$WORK"
-rm -f "$MANIFEST_ROOT/test_portable.yaml" "$MANIFEST_ROOT/test_zip.yaml" "$MANIFEST_ROOT/test_script.yaml" "$MANIFEST_ROOT/test_script_v2.yaml" "$MANIFEST_ROOT/test_portable_ua.yaml"
+rm -f "$MANIFEST_ROOT/test_portable.yaml" "$MANIFEST_ROOT/test_zip.yaml" "$MANIFEST_ROOT/test_script.yaml" "$MANIFEST_ROOT/test_script_v2.yaml" "$MANIFEST_ROOT/test_portable_ua.yaml" "$MANIFEST_ROOT/test_conc.yaml"
+# index copies test_conc.yaml into $MANIFEST_ROOT under its own filename; already covered above.
 rm -rf /data/data/com.termux/files/home/.winget/versions/Test.Script.version
 
 echo

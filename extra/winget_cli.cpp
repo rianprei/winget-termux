@@ -444,9 +444,25 @@ namespace
         return std::nullopt;
     }
 
+    // Self-heal: if a previous install of this exact id was killed between the backend
+    // creating its directory/symlink and this process writing the version marker, that
+    // leftover directory has no marker and ScanInstalled's IsCommandOnPath check would
+    // otherwise make a fresh install attempt collide with it. Since the caller already
+    // holds this id's PackageLock, it's safe to wipe an orphan before installing for real.
+    void CleanOrphanedInstall(const std::string& packageId)
+    {
+        if (ReadInstalledState(packageId)) { return; }
+        const char* home = std::getenv("HOME");
+        std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
+        std::error_code ec;
+        std::filesystem::remove_all(homeDir / ".winget" / "programfiles" / packageId, ec);
+        std::filesystem::remove_all(homeDir / ".winget" / "ziparchives" / packageId, ec);
+    }
+
     int CmdInstall(SQLiteIndex& index, const std::string& id)
     {
         PackageLock lock(id);
+        CleanOrphanedInstall(id);
         std::string sourceName;
         auto manifest = ResolveManifestAnywhere(index, id, sourceName);
         if (!manifest)

@@ -71,6 +71,17 @@ cd ..            # winget-termux root
 ./catalog/build-catalog.sh
 ```
 
+`verify-on-device.sh` is the gate before merging a new/changed manifest:
+serves the catalog locally, installs every package through `winget` for
+real, runs `<alias> --version` (or `--help`), and fails if any command
+doesn't produce real output. Not a build-error check — this is the same
+"downloaded and hashed correctly is not the bar, running is" rule as the
+curation process, just automated:
+
+```bash
+./catalog/verify-on-device.sh
+```
+
 ## Adding a package
 
 1. Find a real aarch64/arm64 Linux release asset — prefer `musl` or
