@@ -12,10 +12,11 @@ jobs:
 
       - name: Build .deb inside termux-docker
         run: |
-          mkdir -p out
-          docker run --rm -v "$PWD:/root/repo:ro" -v "$PWD/out:/root/out" termux/termux-docker:latest \
-            bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh && cp winget-termux_*.deb /root/out/"
-          mv out/winget-termux_*.deb .
+          docker create --name wgbuild -v "$PWD:/root/repo:ro" termux/termux-docker:latest \
+            bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh && cp winget-termux_*.deb /"
+          docker start -a wgbuild
+          docker cp wgbuild:/winget-termux_1.0.0_aarch64.deb .
+          docker rm wgbuild
 
       - name: Checksums
         run: sha256sum winget-termux_*.deb > checksums.txt
