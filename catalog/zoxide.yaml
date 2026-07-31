@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: ajeetdsouza.zoxide
+PackageVersion: 0.10.0
+PackageLocale: en-US
+Publisher: ajeetdsouza
+PackageName: zoxide
+Moniker: zoxide
+ShortDescription: A smarter cd command for your terminal
+Tags:
+  - cd
+  - directory-navigation
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/ajeetdsouza/zoxide/releases/download/v0.10.0/zoxide-0.10.0-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: f1f16c5d6298d63dee467eedea1cdcd8490e43e493bea43acd416dc9033ef641
+    NestedInstallerFiles:
+      - RelativeFilePath: zoxide
+        PortableCommandAlias: zoxide
+ManifestType: singleton
+ManifestVersion: 1.4.0

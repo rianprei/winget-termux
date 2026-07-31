@@ -33,6 +33,26 @@ namespace AppInstaller::Portable::Termux
             return GetPrefix() / "bin" / commandAlias;
         }
 
+        // Real safety check: never remove/overwrite $PREFIX/bin/<alias> unless it's already
+        // our own symlink (pointing somewhere under ~/.winget/). A manifest whose alias
+        // collides with an existing real command (a pkg-installed binary, another package's
+        // symlink) must not destroy it -- this exact bug once deleted a real `gh` install.
+        bool IsOurManagedSymlink(const std::filesystem::path& link)
+        {
+            std::error_code ec;
+            if (!std::filesystem::is_symlink(link, ec))
+            {
+                return false;
+            }
+            auto target = std::filesystem::read_symlink(link, ec);
+            if (ec)
+            {
+                return false;
+            }
+            auto managedRoot = (GetHome() / ".winget").string();
+            return target.string().rfind(managedRoot, 0) == 0;
+        }
+
         size_t CurlWrite(void* contents, size_t size, size_t nmemb, void* userp)
         {
             std::ofstream* out = static_cast<std::ofstream*>(userp);
@@ -118,8 +138,15 @@ namespace AppInstaller::Portable::Termux
             return result;
         }
 
-        // 4. Symlink real in $PREFIX/bin (idempotent: replace if exists)
+        // 4. Symlink real in $PREFIX/bin (idempotent: replace if it's already ours; refuse to
+        // touch anything else that occupies this name).
         std::filesystem::path link = SymlinkPath(commandAlias);
+        if (std::filesystem::exists(link, ec) && !IsOurManagedSymlink(link))
+        {
+            result.Message = "'" + commandAlias + "' already exists at " + link.string() + " and is not managed by winget-termux; refusing to overwrite it";
+            std::filesystem::remove_all(dir, ec);
+            return result;
+        }
         std::filesystem::remove(link, ec);
         std::filesystem::create_symlink(payloadPath, link, ec);
         if (ec)
@@ -141,7 +168,11 @@ namespace AppInstaller::Portable::Termux
         bool ok = true;
 
         std::filesystem::path link = SymlinkPath(commandAlias);
-        std::filesystem::remove(link, ec); // no error if missing
+        if (IsOurManagedSymlink(link))
+        {
+            std::filesystem::remove(link, ec); // no error if missing
+        }
+        // else: not ours (or already gone) -- never touch it.
 
         std::filesystem::path dir = PackageDir(packageId);
         std::filesystem::path payloadPath = dir / fileName;

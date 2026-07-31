@@ -1,106 +1,127 @@
 # winget-termux
 
-Native ARM64/bionic Termux port of a real subset of Microsoft's `winget-cli`.
-No proot, chroot, root, Wine, Box64, or emulation.
+A native ARM64 port of a working subset of Microsoft's `winget-cli`, built
+to run directly on Termux — no proot, no chroot, no root, no Wine, no
+emulation layer. The binary is a real clang build targeting bionic libc,
+using the same manifest schema and SQLite index format as upstream winget.
 
 ## Quick start
 
-```
+```bash
 git clone https://github.com/rianprei/winget-termux.git
 cd winget-termux
 ./build.sh
 winget --version
 ```
 
-## Docs
+## What it does
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technical writeup, what's
-  real vs. cut, POSIX/Win32 conversion table.
-- [docs/STATS.md](docs/STATS.md) — diff stats vs. upstream winget-cli.
-- [docs/AUDIT.md](docs/AUDIT.md) — dead code, real bugs found and fixed,
-  known limitations.
+- `install`, `uninstall`, `upgrade` (single or `--all`), `search`, `show`,
+  `list` — the core winget command surface.
+- `source add/update/remove/list` — register and sync remote SQLite
+  catalogs, same schema as this project's own index.
+- `index` — add a manifest to the local catalog in one command.
+- `install-url` — install a single script or binary directly from a URL,
+  no manifest required; the hash is computed from what was actually
+  downloaded.
+- `pin` / `unpin` — exclude a package from upgrades.
+- `export` / `import` — snapshot and restore installed packages.
+- Portable, Zip, and Script installer types, including automatic `.tar.gz`
+  extraction alongside `.zip`.
+
+`.exe`, `.msi`, and `.msix` are not supported — there is no path to running
+Windows installers on Android, and this project doesn't pretend otherwise.
 
 ## Build
 
-```
+```bash
 ./build.sh
 ```
 
-Clones winget-cli at a pinned commit, applies `patches/winget-cli.patch`,
-compiles the real (patched) subset listed in `FILES.txt`, links
-`./winget_real_cli`, and creates/refreshes a `winget` symlink in
-`$PREFIX/bin` pointing at it. Requires Termux with network access; installs
-its own `pkg` dependencies (clang, cmake, sqlite, libyaml, jsoncpp, libicu,
-openssl, libcurl, zlib, curl, unzip, zip, git).
+Clones `winget-cli` at a pinned commit, applies `patches/winget-cli.patch`,
+compiles the patched subset listed in `FILES.txt`, links
+`./winget_real_cli`, and points a `winget` symlink at it from `$PREFIX/bin`.
+Installs its own `pkg` dependencies (clang, cmake, sqlite, libyaml,
+jsoncpp, libicu, openssl, libcurl, zlib, curl, unzip, zip, git).
 
-If `$PREFIX/bin/winget` already exists as a real file (not our symlink --
-e.g. a different package), `build.sh` leaves it alone and tells you so; use
-`./winget_real_cli` directly in that case, or remove the conflicting file
-yourself and re-run `build.sh`.
+If `$PREFIX/bin/winget` is already a real file — not this project's
+symlink — `build.sh` leaves it alone and says so. Remove the conflict
+yourself and rerun, or just call `./winget_real_cli` directly.
 
 ## Test
 
-```
+```bash
 ./run-tests.sh
 ```
 
-Self-contained: stages its own test manifests, serves real payloads over a
-local HTTP server, and exercises `source list` / `search` / `show` / `list`
-/ `install` / `uninstall` for both Portable and Zip installer types against
-the real compiled binary. Exits non-zero on any failure.
+Self-contained: stages its own manifests, serves real payloads over a local
+HTTP server, and exercises every command against the compiled binary. Exits
+non-zero on failure.
 
 ## Use
 
-After `build.sh`, `winget` is on `$PATH` (a symlink to `./winget_real_cli`
-— the real binary itself is untouched and still directly runnable):
-
-```
-winget --version
-winget index <manifest.yaml>
-winget install-url <url> [alias]   # no manifest at all, self-verifying
-winget pin <PackageIdentifier>     # skip on upgrade/upgrade --all
-winget unpin <PackageIdentifier>
-winget export [file]               # dump installed packages as JSON (default: stdout)
-winget import <file>               # reinstall everything from an export
-winget source list
-winget source add <name> <url-to-sqlite-catalog>
-winget source update <name>
-winget source remove <name>
+```bash
 winget search <query>
 winget show <PackageIdentifier>
 winget install <PackageIdentifier>
 winget uninstall <PackageIdentifier>
-winget upgrade <PackageIdentifier>|--all
+winget upgrade <PackageIdentifier>       # or: winget upgrade --all
 winget list
+
+winget index <manifest.yaml>
+winget install-url <url> [alias]
+
+winget pin <PackageIdentifier>
+winget unpin <PackageIdentifier>
+winget export [file]
+winget import <file>
+
+winget source add <name> <url-to-sqlite-catalog>
+winget source update <name>
+winget source remove <name>
+winget source list
 ```
 
-To remove just the shortcut (keeping the build): `rm $PREFIX/bin/winget`.
-Running `./build.sh` again recreates it.
+To install something, it needs to be in the catalog first. Either write a
+manifest and run `winget index`:
 
-## Package (real .deb, installable on any Termux)
-
-```
-./package.sh
-dpkg -i winget-termux_1.0.0_aarch64.deb    # or: pkg install ./winget-termux_1.0.0_aarch64.deb
-```
-
-Builds a real Termux `.deb` from the already-compiled `winget_real_cli`
-(run `build.sh` first). Unlike the dev `winget` symlink, the package
-installs the actual binary into `$PREFIX/bin/winget_real_cli` plus a
-`winget` symlink next to it -- no dependency on this source checkout, so it
-works on a Termux install that never cloned this repo. Remove with
-`dpkg -r winget-termux` (or `pkg uninstall winget-termux`).
-
-Write a manifest YAML (see `manifests/` for real examples), then:
-
-```
+```bash
 winget index my_package.yaml
-winget install <PackageIdentifier from the manifest>
+winget install <PackageIdentifier>
 ```
 
-`winget index` stages the file into the real manifest root and adds it to
-the local SQLite catalog with one command — no compiling required. There is
-no `source add`/sync against the real winget.run catalog in this port.
+or skip the manifest entirely for a single binary:
+
+```bash
+winget install-url https://example.com/tool
+```
+
+There is no sync against the official winget.run catalog — this project
+maintains its own, see [catalog/](catalog/).
+
+To remove just the `winget` shortcut (keeping the build):
+`rm $PREFIX/bin/winget`. `./build.sh` recreates it.
+
+## Package
+
+```bash
+./package.sh
+dpkg -i winget-termux_1.0.0_aarch64.deb
+```
+
+Builds a real Termux `.deb` from the compiled binary. Unlike the dev
+symlink, it installs the binary itself into `$PREFIX/bin`, so it works on
+a Termux install that never cloned this repository. Remove with
+`dpkg -r winget-termux`.
+
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the port works, what
+  was rewritten, what was cut, and why.
+- [docs/STATS.md](docs/STATS.md) — diff against upstream winget-cli.
+- [docs/AUDIT.md](docs/AUDIT.md) — known limitations and bugs found during
+  development.
+- [catalog/](catalog/) — seven verified ARM64 command-line tools.
 
 ## License
 

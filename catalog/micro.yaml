@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: micro-editor.micro
+PackageVersion: 2.0.15
+PackageLocale: en-US
+Publisher: micro-editor
+PackageName: micro
+Moniker: micro
+ShortDescription: Modern and intuitive terminal-based text editor
+Tags:
+  - editor
+  - terminal
+  - go
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/micro-editor/micro/releases/download/v2.0.15/micro-2.0.15-linux-arm64.tar.gz
+    InstallerSha256: 5ca127857bf5500be3879f1a70b27556e737a49da04a1be5334de9e8e8781ad9
+    NestedInstallerFiles:
+      - RelativeFilePath: micro-2.0.15/micro
+        PortableCommandAlias: micro
+ManifestType: singleton
+ManifestVersion: 1.4.0

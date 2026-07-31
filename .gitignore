@@ -9,3 +9,9 @@ build.log
 .remoteinstall/
 .repro1/
 .manual-test/
+.pintest/
+.idxtest/
+.urltest/
+catalog/build-catalog
+catalog/build-catalog.o
+catalog/catalog/

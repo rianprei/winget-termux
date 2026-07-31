@@ -32,6 +32,24 @@ namespace AppInstaller::Zip::Termux
             return GetPrefix() / "bin" / commandAlias;
         }
 
+        // See PortableInstallerTermux.cpp's IsOurManagedSymlink for why this exists: never
+        // remove/overwrite a $PREFIX/bin/<alias> that isn't already our own managed symlink.
+        bool IsOurManagedSymlink(const std::filesystem::path& link)
+        {
+            std::error_code ec;
+            if (!std::filesystem::is_symlink(link, ec))
+            {
+                return false;
+            }
+            auto target = std::filesystem::read_symlink(link, ec);
+            if (ec)
+            {
+                return false;
+            }
+            auto managedRoot = (GetHome() / ".winget").string();
+            return target.string().rfind(managedRoot, 0) == 0;
+        }
+
         size_t CurlWrite(void* contents, size_t size, size_t nmemb, void* userp)
         {
             std::ofstream* out = static_cast<std::ofstream*>(userp);
@@ -113,15 +131,28 @@ namespace AppInstaller::Zip::Termux
             return result;
         }
 
-        // 3. Extract real via real unzip binary
+        // 3. Extract real via real unzip/tar binary. Despite the "Zip" installer type name,
+        // most real-world GitHub release assets for CLI tools are actually .tar.gz, not
+        // .zip -- detected here by real magic bytes (gzip: 0x1f 0x8b; zip: "PK"), not by
+        // trusting the URL's file extension, since a redirect or CDN can serve either
+        // without a matching URL suffix.
         std::filesystem::path extractDir = dir / "extracted";
         std::filesystem::remove_all(extractDir, ec);
         std::filesystem::create_directories(extractDir, ec);
 
-        std::string cmd = "unzip -o -q '" + zipPath.string() + "' -d '" + extractDir.string() + "'";
+        unsigned char magic[2] = { 0, 0 };
+        {
+            std::ifstream probe(zipPath, std::ios::binary);
+            probe.read(reinterpret_cast<char*>(magic), 2);
+        }
+        bool isGzip = (magic[0] == 0x1f && magic[1] == 0x8b);
+
+        std::string cmd = isGzip
+            ? "tar -xzf '" + zipPath.string() + "' -C '" + extractDir.string() + "'"
+            : "unzip -o -q '" + zipPath.string() + "' -d '" + extractDir.string() + "'";
         if (!RunReal(cmd))
         {
-            result.Message = "unzip extraction failed";
+            result.Message = std::string(isGzip ? "tar" : "unzip") + " extraction failed";
             return result;
         }
 
@@ -139,8 +170,15 @@ namespace AppInstaller::Zip::Termux
             std::filesystem::perms::others_read | std::filesystem::perms::others_exec,
             std::filesystem::perm_options::replace, ec);
 
-        // 6. Symlink real in $PREFIX/bin (idempotent: replace if exists)
+        // 6. Symlink real in $PREFIX/bin (idempotent: replace if it's already ours; refuse to
+        // touch anything else that occupies this name).
         std::filesystem::path link = SymlinkPath(commandAlias);
+        if (std::filesystem::exists(link, ec) && !IsOurManagedSymlink(link))
+        {
+            result.Message = "'" + commandAlias + "' already exists at " + link.string() + " and is not managed by winget-termux; refusing to overwrite it";
+            std::filesystem::remove_all(dir, ec);
+            return result;
+        }
         std::filesystem::remove(link, ec);
         std::filesystem::create_symlink(binaryPath, link, ec);
         if (ec)
@@ -162,7 +200,10 @@ namespace AppInstaller::Zip::Termux
         std::error_code ec;
 
         std::filesystem::path link = SymlinkPath(commandAlias);
-        std::filesystem::remove(link, ec);
+        if (IsOurManagedSymlink(link))
+        {
+            std::filesystem::remove(link, ec);
+        }
 
         std::filesystem::path dir = PackageDir(packageId);
         std::filesystem::remove_all(dir, ec);

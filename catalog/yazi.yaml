@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: sxyazi.yazi
+PackageVersion: 26.5.6
+PackageLocale: en-US
+Publisher: sxyazi
+PackageName: yazi
+Moniker: yazi
+ShortDescription: Blazing fast terminal file manager written in Rust
+Tags:
+  - file-manager
+  - tui
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/sxyazi/yazi/releases/download/v26.5.6/yazi-aarch64-unknown-linux-musl.zip
+    InstallerSha256: dff4a6774069bdde616c3cd145275b462a5887229cd9bf6341e78063da37e84f
+    NestedInstallerFiles:
+      - RelativeFilePath: yazi-aarch64-unknown-linux-musl/yazi
+        PortableCommandAlias: yazi
+ManifestType: singleton
+ManifestVersion: 1.4.0

@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: junegunn.fzf
+PackageVersion: 0.74.1
+PackageLocale: en-US
+Publisher: junegunn
+PackageName: fzf
+Moniker: fzf
+ShortDescription: A command-line fuzzy finder
+Tags:
+  - fuzzy-finder
+  - terminal
+  - go
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/junegunn/fzf/releases/download/v0.74.1/fzf-0.74.1-linux_arm64.tar.gz
+    InstallerSha256: f22204dd1a091d43e102268d062fd53b47133c8d8581671ee5eb225b75e31183
+    NestedInstallerFiles:
+      - RelativeFilePath: fzf
+        PortableCommandAlias: fzf
+ManifestType: singleton
+ManifestVersion: 1.4.0

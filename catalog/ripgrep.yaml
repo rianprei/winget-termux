@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: BurntSushi.ripgrep
+PackageVersion: 15.2.0
+PackageLocale: en-US
+Publisher: BurntSushi
+PackageName: ripgrep
+Moniker: rg
+ShortDescription: A line-oriented search tool that recursively searches the current directory for a regex pattern
+Tags:
+  - search
+  - grep
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: 800b1e7206afe799dfb5a6901f23147cfaabe0e52210538100f61e86e1740915
+    NestedInstallerFiles:
+      - RelativeFilePath: ripgrep-15.2.0-aarch64-unknown-linux-musl/rg
+        PortableCommandAlias: rg
+ManifestType: singleton
+ManifestVersion: 1.4.0

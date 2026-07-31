@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: aristocratos.btop
+PackageVersion: 1.4.7
+PackageLocale: en-US
+Publisher: aristocratos
+PackageName: btop
+Moniker: btop
+ShortDescription: A monitor of resources
+Tags:
+  - system-monitor
+  - top
+  - cpp
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/aristocratos/btop/releases/download/v1.4.7/btop-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: 6270de0ef4c84cf0eea61cb148b3ad9ae91a11e9c3309867ffc6b3751024c252
+    NestedInstallerFiles:
+      - RelativeFilePath: btop/bin/btop
+        PortableCommandAlias: btop
+ManifestType: singleton
+ManifestVersion: 1.4.0

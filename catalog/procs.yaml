@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: dalance.procs
+PackageVersion: 0.14.12
+PackageLocale: en-US
+Publisher: dalance
+PackageName: procs
+Moniker: procs
+ShortDescription: A modern replacement for ps written in Rust
+Tags:
+  - ps
+  - process-viewer
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/dalance/procs/releases/download/v0.14.12/procs-v0.14.12-aarch64-linux.zip
+    InstallerSha256: 74b4f82acc6fe553cbd5af20ba0baac420b42bef9bb0cbb38fef14b8317d9f91
+    NestedInstallerFiles:
+      - RelativeFilePath: procs
+        PortableCommandAlias: procs
+ManifestType: singleton
+ManifestVersion: 1.4.0
