@@ -10,7 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     container:
-      image: termux/termux-docker:aarch64-noble
+      image: termux/termux-docker:latest
     steps:
       - uses: actions/checkout@v4
 
