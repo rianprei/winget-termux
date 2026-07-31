@@ -73,6 +73,8 @@ namespace AppInstaller::Portable::Termux
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &out);
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+            curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+            curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
 
             CURLcode res = curl_easy_perform(curl);
             long httpCode = 0;

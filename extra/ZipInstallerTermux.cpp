@@ -5,6 +5,8 @@
 #include <fstream>
 #include <cstdlib>
 #include <cstdio>
+#include <unistd.h>
+#include <sys/wait.h>
 
 namespace AppInstaller::Zip::Termux
 {
@@ -70,6 +72,10 @@ namespace AppInstaller::Zip::Termux
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &out);
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+            // Reject file:// and other non-http(s) schemes -- without this a manifest/source
+            // URL pointing at file:///data/... would exfiltrate a local file disguised as a download.
+            curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+            curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
 
             CURLcode res = curl_easy_perform(curl);
             long httpCode = 0;
@@ -86,11 +92,25 @@ namespace AppInstaller::Zip::Termux
             return s;
         }
 
-        // Real shell-out to the real Termux `unzip` binary; no vendored zip parser.
-        bool RunReal(const std::string& cmd)
+        // Real exec (no shell) to the real Termux tar/unzip binary; no vendored zip parser.
+        // argv-based, not system(), so path components can never be reinterpreted as shell syntax.
+        bool RunReal(const std::string& bin, const std::vector<std::string>& args)
         {
-            int rc = std::system(cmd.c_str());
-            return rc == 0;
+            std::vector<char*> argv;
+            argv.push_back(const_cast<char*>(bin.c_str()));
+            for (auto& a : args) { argv.push_back(const_cast<char*>(a.c_str())); }
+            argv.push_back(nullptr);
+
+            pid_t pid = fork();
+            if (pid < 0) { return false; }
+            if (pid == 0)
+            {
+                execvp(bin.c_str(), argv.data());
+                _exit(127);
+            }
+            int status = 0;
+            waitpid(pid, &status, 0);
+            return WIFEXITED(status) && WEXITSTATUS(status) == 0;
         }
     }
 
@@ -147,10 +167,10 @@ namespace AppInstaller::Zip::Termux
         }
         bool isGzip = (magic[0] == 0x1f && magic[1] == 0x8b);
 
-        std::string cmd = isGzip
-            ? "tar -xzf '" + zipPath.string() + "' -C '" + extractDir.string() + "'"
-            : "unzip -o -q '" + zipPath.string() + "' -d '" + extractDir.string() + "'";
-        if (!RunReal(cmd))
+        bool ok = isGzip
+            ? RunReal("tar", { "-xzf", zipPath.string(), "-C", extractDir.string() })
+            : RunReal("unzip", { "-o", "-q", zipPath.string(), "-d", extractDir.string() });
+        if (!ok)
         {
             result.Message = std::string(isGzip ? "tar" : "unzip") + " extraction failed";
             return result;
