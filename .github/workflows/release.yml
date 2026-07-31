@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build .deb inside termux-docker
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD:/root/repo:ro" -v "$PWD/out:/root/out" termux/termux-docker:latest \
+            bash -lc "mkdir -p \$HOME/repo && cp -r /root/repo/. \$HOME/repo && cd \$HOME/repo && bash build.sh && bash package.sh && cp winget-termux_*.deb /root/out/"
+          mv out/winget-termux_*.deb .
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: winget-termux_*.deb
+          generate_release_notes: true
