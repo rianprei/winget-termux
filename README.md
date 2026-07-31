@@ -26,6 +26,7 @@ winget --version
   downloaded.
 - `pin` / `unpin` — exclude a package from upgrades.
 - `export` / `import` — snapshot and restore installed packages.
+- `hash` — compute a manifest-ready SHA256 for a local file.
 - Portable, Zip, and Script installer types, including automatic `.tar.gz`
   extraction alongside `.zip`.
 
@@ -75,6 +76,7 @@ winget pin <PackageIdentifier>
 winget unpin <PackageIdentifier>
 winget export [file]
 winget import <file>
+winget hash <file>
 
 winget source add <name> <url-to-sqlite-catalog>
 winget source update <name>
@@ -121,7 +123,7 @@ a Termux install that never cloned this repository. Remove with
 - [docs/STATS.md](docs/STATS.md) — diff against upstream winget-cli.
 - [docs/AUDIT.md](docs/AUDIT.md) — known limitations and bugs found during
   development.
-- [catalog/](catalog/) — seven verified ARM64 command-line tools.
+- [catalog/](catalog/) — ten verified ARM64 command-line tools.
 
 ## License
 

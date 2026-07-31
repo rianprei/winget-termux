@@ -1271,6 +1271,22 @@ namespace
         std::cout << std::endl << "Import summary: " << ok << " OK, " << failed << " failed." << std::endl;
         return failed == 0 ? EXIT_OK : 1;
     }
+
+    // Real SHA256 of a local file, same helper the installers use to verify downloads --
+    // for authoring a manifest's InstallerSha256 without a separate sha256sum dependency.
+    int CmdHash(const std::string& path)
+    {
+        if (!std::filesystem::exists(path))
+        {
+            std::cerr << "file not found: " << path << std::endl;
+            return EXIT_NOT_FOUND;
+        }
+        auto hash = AppInstaller::Utility::SHA256::ComputeHashFromFile(path);
+        std::string hex = AppInstaller::Utility::SHA256::ConvertToString(hash);
+        std::for_each(hex.begin(), hex.end(), [](char& c) { c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+        std::cout << hex << std::endl;
+        return EXIT_OK;
+    }
 }
 
 namespace
@@ -1287,6 +1303,7 @@ namespace
         std::cerr << "       winget_cli search [<query>]" << std::endl;
         std::cerr << "       winget_cli list" << std::endl;
         std::cerr << "       winget_cli source <list|add <name> <url>|remove <name>|update <name>>" << std::endl;
+        std::cerr << "       winget_cli hash <file>" << std::endl;
     }
 }
 
@@ -1304,6 +1321,12 @@ int main(int argc, char** argv)
     {
         std::cout << "winget-termux 1.0.0 (native ARM64/bionic Termux port)" << std::endl;
         return EXIT_OK;
+    }
+
+    if (command == "hash")
+    {
+        if (argc < 3) { PrintUsage(); return EXIT_USAGE; }
+        return CmdHash(argv[2]);
     }
 
     try

@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: tealdeer-rs.tealdeer
+PackageVersion: 1.8.1
+PackageLocale: en-US
+Publisher: tealdeer-rs
+PackageName: tealdeer
+Moniker: tldr
+ShortDescription: Fast tldr client
+Tags:
+  - tldr
+  - docs
+  - rust
+InstallerLocale: en-US
+InstallerType: portable
+Commands:
+  - tldr
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/tealdeer-rs/tealdeer/releases/download/v1.8.1/tealdeer-linux-aarch64-musl
+    InstallerSha256: 09d4506b3ba2efe7376e3a5ce1238aa5e6c33ae6f2532c190156540f6c4e7d69
+ManifestType: singleton
+ManifestVersion: 1.4.0

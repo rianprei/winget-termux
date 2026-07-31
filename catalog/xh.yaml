@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: ducaale.xh
+PackageVersion: 0.26.2
+PackageLocale: en-US
+Publisher: ducaale
+PackageName: xh
+Moniker: xh
+ShortDescription: Friendly HTTP client (httpie-like, rust)
+Tags:
+  - http
+  - cli
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/ducaale/xh/releases/download/v0.26.2/xh-v0.26.2-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: 3a44900a8ac53f614aa0cd1d2e54ecf4e93584384c1ad091aa18d7992686d7eb
+    NestedInstallerFiles:
+      - RelativeFilePath: xh-v0.26.2-aarch64-unknown-linux-musl/xh
+        PortableCommandAlias: xh
+ManifestType: singleton
+ManifestVersion: 1.4.0

@@ -1,6 +1,6 @@
 # winget-termux catalog
 
-Seven ARM64-native command-line tools, installable through `winget install`.
+Ten ARM64-native command-line tools, installable through `winget install`.
 Every entry was downloaded, hashed, installed, and executed on-device before
 being added here — no placeholder hashes, no untested URLs.
 
@@ -13,8 +13,11 @@ being added here — no placeholder hashes, no untested URLs.
 | `dalance.procs` | `procs` | 0.14.12 | Modern `ps` |
 | `sxyazi.yazi` | `yazi` | 26.5.6 | Terminal file manager |
 | `micro-editor.micro` | `micro` | 2.0.15 | Terminal text editor |
+| `starship.starship` | `starship` | 1.26.0 | Cross-shell prompt |
+| `tealdeer-rs.tealdeer` | `tldr` | 1.8.1 | Fast tldr client |
+| `ducaale.xh` | `xh` | 0.26.2 | Friendly HTTP client |
 
-## Why only seven
+## Why only ten
 
 Android's bionic C library isn't glibc. A GitHub release binary built and
 linked against glibc (most `-gnu` targets) fails to execute at all on

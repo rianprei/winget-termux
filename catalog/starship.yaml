@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: starship.starship
+PackageVersion: 1.26.0
+PackageLocale: en-US
+Publisher: starship
+PackageName: starship
+Moniker: starship
+ShortDescription: Minimal, fast cross-shell prompt
+Tags:
+  - prompt
+  - shell
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/starship/starship/releases/download/v1.26.0/starship-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: dc30189378d2f2e287384e8a692d3f95ad1df64cf0e8c36aa9201516028aed6b
+    NestedInstallerFiles:
+      - RelativeFilePath: starship
+        PortableCommandAlias: starship
+ManifestType: singleton
+ManifestVersion: 1.4.0
