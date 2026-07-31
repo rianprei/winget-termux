@@ -22,17 +22,32 @@ jobs:
 
       - name: Build release notes
         run: |
+          DEB=$(ls winget-termux_*.deb)
           cat > notes.md <<EOF
-          Native ARM64/bionic Termux port of \`winget-cli\` — no proot, no chroot, no root, no Wine, no emulation.
+          # winget on Android — real, native, no emulation
+
+          A working subset of Microsoft's \`winget-cli\` compiled natively for
+          ARM64/bionic Termux. No proot, no chroot, no root, no Wine, no
+          emulation layer — this is the same clang toolchain and manifest/SQLite
+          index format upstream winget uses, just targeting Android's libc.
+
+          ## Highlights
+
+          - \`install\` / \`uninstall\` / \`upgrade\` (single or \`--all\`) / \`search\` / \`show\` / \`list\` (with \`--upgrade-available\`)
+          - \`source add/update/remove/list/export\` — sync remote SQLite catalogs
+          - \`install-url\` — install a script or binary straight from a URL, hash computed from what was actually downloaded
+          - \`pin\` / \`unpin\`, \`export\` / \`import\`, \`hash\`, \`validate\`, \`download\`, \`--info\`, \`complete\`
+          - Portable, Zip, and Script installer types, real SHA256 verification, zip-slip and path-traversal hardened
+          - Ships with a 19-package curated catalog of verified ARM64 CLI tools
 
           ## Install
 
           \`\`\`bash
-          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(ls winget-termux_*.deb)
-          dpkg -i $(ls winget-termux_*.deb)
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$DEB
+          dpkg -i $DEB
           \`\`\`
 
-          Or from source:
+          ## Or build from source
 
           \`\`\`bash
           git clone https://github.com/${{ github.repository }}.git
@@ -40,13 +55,22 @@ jobs:
           ./build.sh
           \`\`\`
 
-          ## Checksum (sha256)
+          ## Verify (sha256)
 
           \`\`\`
           $(cat checksums.txt)
           \`\`\`
 
-          See [CHANGELOG below](#) for commit history since the last tag.
+          ## Docs
+
+          [README](https://github.com/${{ github.repository }}#readme) ·
+          [Architecture](https://github.com/${{ github.repository }}/blob/main/docs/ARCHITECTURE.md) ·
+          [Catalog](https://github.com/${{ github.repository }}/blob/main/catalog/README.md) ·
+          [Security policy](https://github.com/${{ github.repository }}/blob/main/SECURITY.md)
+
+          ---
+
+          **What's changed**
           EOF
 
       - name: Create release
