@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: schollz.croc
+PackageVersion: 10.7.0
+PackageLocale: en-US
+Publisher: schollz
+PackageName: croc
+Moniker: croc
+ShortDescription: Securely send files between computers
+Tags:
+  - file-transfer
+  - network
+  - go
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/schollz/croc/releases/download/v10.7.0/croc_v10.7.0_Linux-ARM64.tar.gz
+    InstallerSha256: 1607e11c0a6304d6e88b201f015daa8a87d9d8696b4dd728c4e95c4fbd6f7f89
+    NestedInstallerFiles:
+      - RelativeFilePath: croc
+        PortableCommandAlias: croc
+ManifestType: singleton
+ManifestVersion: 1.4.0

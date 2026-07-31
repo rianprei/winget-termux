@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: muesli.duf
+PackageVersion: 0.9.1
+PackageLocale: en-US
+Publisher: muesli
+PackageName: duf
+Moniker: duf
+ShortDescription: Disk usage/free utility
+Tags:
+  - disk
+  - usage
+  - go
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/muesli/duf/releases/download/v0.9.1/duf_0.9.1_linux_arm64.tar.gz
+    InstallerSha256: 22ea0ad29f6610bf443aa351e600de97e47a9b380ef58316606a84bb8f595216
+    NestedInstallerFiles:
+      - RelativeFilePath: duf
+        PortableCommandAlias: duf
+ManifestType: singleton
+ManifestVersion: 1.4.0
