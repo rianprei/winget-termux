@@ -11,6 +11,10 @@ SRC="$ROOT/build/winget-cli"
 OBJDIR="$ROOT/build/objs"
 
 echo "[1/7] Installing dependencies (pkg)..."
+# Termux's random mirror picker is flaky in CI (stale/broken mirrors cause hash
+# mismatches) -- pin the official CDN-backed mirror instead of gambling on one.
+grep -q "packages-cf.termux.dev" "$PREFIX/etc/apt/sources.list" 2>/dev/null || \
+    echo "deb https://packages-cf.termux.dev/apt/termux-main stable main" > "$PREFIX/etc/apt/sources.list"
 pkg install -y clang cmake git curl unzip zip sqlite libyaml jsoncpp libicu openssl openssl-tool libcurl zlib python procps sed gawk
 
 echo "[2/7] Fetching winget-cli @ $WINGET_COMMIT and valijson @ $VALIJSON_COMMIT..."
