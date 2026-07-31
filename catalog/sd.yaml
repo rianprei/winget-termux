@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: chmln.sd
+PackageVersion: 1.1.0
+PackageLocale: en-US
+Publisher: chmln
+PackageName: sd
+Moniker: sd
+ShortDescription: Intuitive find & replace (sed alternative)
+Tags:
+  - sed
+  - text
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/chmln/sd/releases/download/v1.1.0/sd-v1.1.0-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: ec8c93c0533ff21f4851d11566808d4082544baf063d9b96ea77c27e98b7cd99
+    NestedInstallerFiles:
+      - RelativeFilePath: sd-v1.1.0-aarch64-unknown-linux-musl/sd
+        PortableCommandAlias: sd
+ManifestType: singleton
+ManifestVersion: 1.4.0

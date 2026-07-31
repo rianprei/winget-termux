@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: ClementTsang.bottom
+PackageVersion: 0.14.7
+PackageLocale: en-US
+Publisher: ClementTsang
+PackageName: bottom
+Moniker: btm
+ShortDescription: Cross-platform graphical process/system monitor
+Tags:
+  - monitor
+  - system
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/ClementTsang/bottom/releases/download/0.14.7/bottom_aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: 0119ab5c1a6f2501dfa6f94ec7529f108dc62fcc0097f4d5614a36fffdbf64a4
+    NestedInstallerFiles:
+      - RelativeFilePath: btm
+        PortableCommandAlias: btm
+ManifestType: singleton
+ManifestVersion: 1.4.0

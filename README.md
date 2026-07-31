@@ -127,7 +127,7 @@ a Termux install that never cloned this repository. Remove with
 - [docs/STATS.md](docs/STATS.md) — diff against upstream winget-cli.
 - [docs/AUDIT.md](docs/AUDIT.md) — known limitations and bugs found during
   development.
-- [catalog/](catalog/) — ten verified ARM64 command-line tools.
+- [catalog/](catalog/) — fifteen verified ARM64 command-line tools.
 
 ## License
 

@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: casey.just
+PackageVersion: 1.57.0
+PackageLocale: en-US
+Publisher: casey
+PackageName: just
+Moniker: just
+ShortDescription: Command runner (Makefile alternative)
+Tags:
+  - build
+  - task-runner
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/casey/just/releases/download/1.57.0/just-1.57.0-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: f225044a81adea6e0b3a8b9370aaf374e6af76c8735ae263ac993df55fd137ec
+    NestedInstallerFiles:
+      - RelativeFilePath: just
+        PortableCommandAlias: just
+ManifestType: singleton
+ManifestVersion: 1.4.0

@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: Byron.dua-cli
+PackageVersion: 2.39.1
+PackageLocale: en-US
+Publisher: Byron
+PackageName: dua-cli
+Moniker: dua
+ShortDescription: Disk usage analyzer with interactive TUI
+Tags:
+  - disk
+  - usage
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/Byron/dua-cli/releases/download/v2.39.1/dua-v2.39.1-aarch64-unknown-linux-musl.tar.gz
+    InstallerSha256: b2b1499b52b32a95a57923e998b1522539092783a1ee1132ad2188a0d2ae0897
+    NestedInstallerFiles:
+      - RelativeFilePath: dua-v2.39.1-aarch64-unknown-linux-musl/dua
+        PortableCommandAlias: dua
+ManifestType: singleton
+ManifestVersion: 1.4.0

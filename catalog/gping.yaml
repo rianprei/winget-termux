@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.0.0.schema.json
+PackageIdentifier: orf.gping
+PackageVersion: 1.20.4
+PackageLocale: en-US
+Publisher: orf
+PackageName: gping
+Moniker: gping
+ShortDescription: Ping with a graph
+Tags:
+  - network
+  - ping
+  - rust
+InstallerLocale: en-US
+InstallerType: zip
+NestedInstallerType: portable
+Installers:
+  - Architecture: arm64
+    InstallerUrl: https://github.com/orf/gping/releases/download/gping-v1.20.4/gping-Linux-musl-arm64.tar.gz
+    InstallerSha256: 4c160ee83ab5ba3a4db086c5cda9511d857133edb65c62b4ba7c0944d3099696
+    NestedInstallerFiles:
+      - RelativeFilePath: gping
+        PortableCommandAlias: gping
+ManifestType: singleton
+ManifestVersion: 1.4.0

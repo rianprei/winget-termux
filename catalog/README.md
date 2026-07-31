@@ -1,6 +1,6 @@
 # winget-termux catalog
 
-Ten ARM64-native command-line tools, installable through `winget install`.
+Fifteen ARM64-native command-line tools, installable through `winget install`.
 Every entry was downloaded, hashed, installed, and executed on-device before
 being added here — no placeholder hashes, no untested URLs.
 
@@ -16,8 +16,13 @@ being added here — no placeholder hashes, no untested URLs.
 | `starship.starship` | `starship` | 1.26.0 | Cross-shell prompt |
 | `tealdeer-rs.tealdeer` | `tldr` | 1.8.1 | Fast tldr client |
 | `ducaale.xh` | `xh` | 0.26.2 | Friendly HTTP client |
+| `ClementTsang.bottom` | `btm` | 0.14.7 | Graphical process/system monitor |
+| `chmln.sd` | `sd` | 1.1.0 | Intuitive find & replace |
+| `Byron.dua-cli` | `dua` | 2.39.1 | Disk usage analyzer (TUI) |
+| `casey.just` | `just` | 1.57.0 | Command runner |
+| `orf.gping` | `gping` | 1.20.4 | Ping with a graph |
 
-## Why only ten
+## Why not every real GitHub release binary
 
 Android's bionic C library isn't glibc. A GitHub release binary built and
 linked against glibc (most `-gnu` targets) fails to execute at all on
