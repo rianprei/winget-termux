@@ -11,7 +11,7 @@ SRC="$ROOT/build/winget-cli"
 OBJDIR="$ROOT/build/objs"
 
 echo "[1/7] Installing dependencies (pkg)..."
-pkg install -y clang cmake git curl unzip zip sqlite libyaml jsoncpp libicu openssl libcurl zlib
+pkg install -y clang cmake git curl unzip zip sqlite libyaml jsoncpp libicu openssl openssl-tool libcurl zlib python procps sed gawk
 
 echo "[2/7] Fetching winget-cli @ $WINGET_COMMIT and valijson @ $VALIJSON_COMMIT..."
 mkdir -p "$ROOT/build"
