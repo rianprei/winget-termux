@@ -174,6 +174,33 @@ run install Test.Portable | grep -q "Successfully installed" && pass "reinstall 
 command -v ptest > /dev/null && pass "ptest back on PATH" || fail "ptest back on PATH"
 run uninstall Test.Portable > /dev/null
 
+echo "=== pin/unpin/export/import/hash/validate/download (previously untested) ==="
+run install Test.Portable > /dev/null
+run pin Test.Portable > /dev/null
+run upgrade Test.Portable | grep -qi "pinned\|skip" && pass "upgrade respects pin" || fail "upgrade respects pin"
+run unpin Test.Portable > /dev/null
+
+run pin "../escape" > /dev/null 2>&1; [ $? -ne 0 ] && pass "pin rejects path traversal id" || fail "pin traversal not rejected"
+run unpin "../../../../etc/passwd" > /dev/null 2>&1
+[ ! -e /etc/passwd.pin ] && pass "unpin traversal touched nothing outside .winget" || fail "unpin traversal escaped .winget"
+
+run export "$WORK/export.json" > /dev/null
+grep -q "Test.Portable" "$WORK/export.json" && pass "export includes installed package" || fail "export"
+run uninstall Test.Portable > /dev/null
+run import "$WORK/export.json" | grep -q "1 OK" && pass "import reinstalls from export" || fail "import"
+run uninstall Test.Portable > /dev/null
+
+echo "hello" > "$WORK/hash_input.txt"
+EXPECTED_HASH=$(sha256sum "$WORK/hash_input.txt" | cut -d' ' -f1)
+run hash "$WORK/hash_input.txt" | grep -qi "$EXPECTED_HASH" && pass "hash matches real sha256sum" || fail "hash"
+
+run validate "$MANIFEST_ROOT/test_portable.yaml" > /dev/null; [ $? -eq 0 ] && pass "validate accepts known-good manifest" || fail "validate good manifest"
+echo "not: a manifest: at: all" > "$WORK/bad.yaml"
+run validate "$WORK/bad.yaml" > /dev/null 2>&1; [ $? -ne 0 ] && pass "validate rejects malformed manifest" || fail "validate bad manifest"
+
+run download Test.Portable "$WORK/dl" > /dev/null
+ls "$WORK/dl" 2>/dev/null | grep -q . && pass "download saves installer file" || fail "download"
+
 echo "=== install zip ==="
 run install Test.Zip | grep -q "Successfully installed" && pass "install zip" || fail "install zip"
 command -v ztest > /dev/null && pass "ztest on PATH" || fail "ztest on PATH"

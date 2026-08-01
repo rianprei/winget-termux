@@ -44,10 +44,16 @@ namespace
     {
         if (s.empty() || s.size() > 200) { return false; }
         if (s == "." || s == "..") { return false; }
+        // Allowlist, not blacklist: only [a-zA-Z0-9._:-]. A blacklist that only rejects the
+        // chars we thought of ('/','\','\'','"') still let '$', backtick, ';', '|', space
+        // through -- inert against execvp today, but the moment any code path reintroduces
+        // system()/popen(), or a caller forgets to call this at all, those chars are live.
+        // ':' is allowed: install-url's synthetic package id is "url:<alias>" (see CmdInstallUrl).
         for (unsigned char c : s)
         {
-            if (c < 0x20 || c == 0x7f) { return false; }
-            if (c == '/' || c == '\\' || c == '\'' || c == '"' || c == '\0') { return false; }
+            bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                c == '.' || c == '_' || c == '-' || c == ':';
+            if (!ok) { return false; }
         }
         return true;
     }
@@ -188,6 +194,12 @@ namespace
     // "fail" (leftover-file false negative) without altering the already-validated backends.
     std::filesystem::path VersionMarkerPath(const std::string& packageId)
     {
+        // CmdPin/CmdUnpin take packageId straight from argv, and CmdImport takes it from an
+        // untrusted JSON file -- neither validated it before reaching here. Guard at the one
+        // place every caller (version marker AND pin, see PinPath below) funnels through,
+        // instead of trusting each call site to remember. Empty path -> callers' ofstream/
+        // ifstream fail to open and remove() is a no-op, so this fails closed, not open.
+        if (!IsSafePathComponent(packageId)) { return {}; }
         const char* home = std::getenv("HOME");
         std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
         std::filesystem::path dir = homeDir / ".winget" / "versions";
@@ -247,6 +259,7 @@ namespace
     // pin database to keep in sync.
     std::filesystem::path PinPath(const std::string& packageId)
     {
+        if (!IsSafePathComponent(packageId)) { return {}; }
         const char* home = std::getenv("HOME");
         std::filesystem::path homeDir = home ? std::filesystem::path(home) : std::filesystem::path("/data/data/com.termux/files/home");
         std::filesystem::path dir = homeDir / ".winget" / "pins";
@@ -1499,7 +1512,13 @@ namespace
         std::filesystem::create_directories(destDir);
         std::string url = installer->Url;
         std::string fileName = std::filesystem::path(url).filename().string();
-        if (fileName.empty())
+        // filename() can't contain '/', so this was never full traversal, but a query string
+        // or fragment on the manifest's URL (?x=1, #frag) would ride along into the on-disk
+        // name verbatim. Cut at the first '?' or '#' before validating; empty falls through
+        // to the same manifest-id default used when the URL has no filename at all.
+        auto cut = fileName.find_first_of("?#");
+        if (cut != std::string::npos) { fileName = fileName.substr(0, cut); }
+        if (fileName.empty() || !IsSafePathComponent(fileName))
         {
             fileName = manifest->Id + ".bin";
         }
