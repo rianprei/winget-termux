@@ -91,3 +91,10 @@ else
     ln -s "$ROOT/winget_real_cli" "$WINGET_BIN"
     echo "  Created symlink: $WINGET_BIN -> $ROOT/winget_real_cli"
 fi
+
+echo "[8/8] Indexing catalog (19 manifests)..."
+for manifest in "$ROOT/catalog"/*.yaml; do
+    [ -f "$manifest" ] || continue
+    "$WINGET_BIN" index "$manifest" >/dev/null 2>&1
+done
+echo "  Catalog indexed — run 'winget search <name>' to verify."
